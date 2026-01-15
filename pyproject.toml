@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "ble-led-badge"
+version = "0.1.0"
+description = "A Python project for controlling BLE LED badges."
+authors = ["Tim Hodson <tim@timhodson.com>"]
+license = "MIT"
+packages = [{include = "badge_controller"}]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+bleak = "^0.20.2"
+pycryptodome = "^3.19.0"
+
+[tool.poetry.scripts]
+badge-controller = "badge_controller.cli:main"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

@@ -37,19 +37,19 @@ async def main():
         print("\n>>> Check the badge display! <<<")
         await asyncio.sleep(5)
 
-        # Try scrolling text - use "Badger" which we also have trace data for
-        text2 = "Badger"
-        print(f"\nSending scrolling text: '{text2}'")
+        # # Try scrolling text - use "Badger" which we also have trace data for
+        # text2 = "Badger"
+        # print(f"\nSending scrolling text: '{text2}'")
 
-        await badge.send_text(
-            text2,
-            scroll_mode=ScrollMode.LEFT,
-            brightness=50,
-            speed=50
-        )
+        # await badge.send_text(
+        #     text2,
+        #     scroll_mode=ScrollMode.LEFT,
+        #     brightness=50,
+        #     speed=50
+        # )
 
-        print(">>> Check the badge display! <<<")
-        await asyncio.sleep(5)
+        # print(">>> Check the badge display! <<<")
+        # await asyncio.sleep(5)
 
 
 if __name__ == "__main__":

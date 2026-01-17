@@ -26,6 +26,10 @@ class ScrollMode(IntEnum):
     STATIC = 1      # No scrolling
     LEFT = 3        # Scroll left
     RIGHT = 4       # Scroll right
+    UP = 5          # Scroll up
+    DOWN = 6        # Scroll down
+    SNOW = 7       # SNOW effect (line by line drop down)
+    # The INVERT and BLINK modes are seen in the app, but not reverse engineered yet
 
 
 class Command:

@@ -155,7 +155,7 @@ class Badge:
         Set the scroll mode.
 
         Args:
-            mode: Scroll mode (use ScrollMode enum: STATIC=1, LEFT=3, RIGHT=4)
+            mode: Scroll mode (use ScrollMode enum: STATIC=1, LEFT=3, RIGHT=4, UP=5, DOWN=6, SNOW=7)
         """
         await self._send_command(Command.mode(mode))
 

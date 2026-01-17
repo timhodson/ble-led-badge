@@ -158,7 +158,19 @@ class Command:
         return build_encrypted_packet("CHEC")
 
     @staticmethod
-    def data_start(length: int, unknown1: int = 0, unknown2: int = 0, unknown3: int = 0) -> bytes:
+    def data_complete() -> bytes:
+        """
+        Signal completion of data/image upload.
+
+        Send this after all image data packets have been transmitted.
+
+        Returns:
+            Encrypted command packet
+        """
+        return build_encrypted_packet("DATCP")
+
+    @staticmethod
+    def data_start(length: int) -> bytes:
         """
         Initiate an image upload.
 
@@ -166,47 +178,52 @@ class Command:
         Badge will respond with DATSOK via NOTIFY characteristic.
 
         Args:
-            length: Total length of image data in bytes
-            unknown1, unknown2, unknown3: Unknown parameters (defaults to 0)
+            length: Total length of image data in bytes (max 255)
 
         Returns:
             Encrypted command packet
         """
-        length_high = (length >> 8) & 0xFF
-        length_low = length & 0xFF
-        return build_encrypted_packet("DATS", length_high, length_low, unknown1, unknown2, unknown3)
+        # Format from trace analysis: DATS[0x00][length][0x00][0x00]
+        # Length goes in second byte, not split across two bytes
+        return build_encrypted_packet("DATS", 0x00, length & 0xFF, 0x00, 0x00)
 
 
 class ImageUpload:
-    """Helper for building image upload packets (sent unencrypted to IMAGE_UPLOAD characteristic)."""
+    """Helper for building image upload packets (encrypted, sent to IMAGE_UPLOAD characteristic)."""
 
     @staticmethod
     def build_packets(image_data: bytes) -> List[bytes]:
         """
-        Split image data into upload packets.
+        Split image data into encrypted upload packets.
 
-        Packet format: [length][counter][data...]
-        Max 100 bytes per packet (98 bytes of payload + 2 header bytes)
+        Packet format (before encryption): [data_length][data...][zero padding to 16 bytes]
+        Each packet is then AES-ECB encrypted before sending.
 
         Args:
-            image_data: Raw RGB image data
+            image_data: Raw bitmap data (9 bytes per character for text)
 
         Returns:
-            List of packets ready to send
+            List of encrypted 16-byte packets ready to send
         """
-        from .protocol import MAX_IMAGE_PAYLOAD
+        from .encryption import encrypt_command
 
         packets = []
         offset = 0
-        counter = 0
 
         while offset < len(image_data):
-            chunk = image_data[offset:offset + MAX_IMAGE_PAYLOAD]
-            packet_len = len(chunk) + 1  # +1 for counter byte
-            packet = bytes([packet_len, counter]) + chunk
-            packets.append(packet)
+            # Each packet can hold up to 15 bytes of data (1 byte for length prefix)
+            chunk = image_data[offset:offset + 15]
+            chunk_len = len(chunk)
 
-            offset += MAX_IMAGE_PAYLOAD
-            counter += 1
+            # Build packet: [length][data][zero padding to 16 bytes]
+            packet = bytes([chunk_len]) + chunk
+            if len(packet) < 16:
+                packet = packet + bytes(16 - len(packet))
+
+            # Encrypt the packet
+            encrypted = encrypt_command(packet)
+            packets.append(encrypted)
+
+            offset += 15
 
         return packets

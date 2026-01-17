@@ -13,6 +13,7 @@ from bleak.backends.device import BLEDevice
 from .commands import Command, ImageUpload, ScrollMode
 from .encryption import decrypt_response
 from .protocol import Characteristics, SERVICE_UUID
+from .text_renderer import TextRenderer
 
 
 class Badge:
@@ -236,7 +237,51 @@ class Badge:
             await self._send_image_data(packet)
             await asyncio.sleep(0.01)  # Small delay between packets
 
+        # Signal upload complete
+        await self._send_command(Command.data_complete())
+        await asyncio.sleep(0.1)  # Brief pause for badge to process
+
         return response is not None
+
+    async def send_text(
+        self,
+        text: str,
+        scroll_mode: int = ScrollMode.LEFT,
+        brightness: int = 128,
+        speed: int = 50,
+        image_slot: int = 0
+    ) -> bool:
+        """
+        Send text to the badge display.
+
+        This is a convenience method that renders text to a bitmap and uploads it.
+
+        Args:
+            text: Text string to display
+            scroll_mode: Scroll mode (use ScrollMode enum: STATIC=1, LEFT=3, RIGHT=4)
+            brightness: Brightness level (0-255, default 128)
+            speed: Scroll speed (0-255, default 50)
+            image_slot: Image slot number to use (0-7, default 0)
+
+        Returns:
+            True if upload was successful
+        """
+        # Render text to bitmap
+        bitmap_data = TextRenderer.render_text(text)
+
+        # Upload bitmap using the proper protocol:
+        # 1. DATS (data start) -> COMMAND characteristic
+        # 2. Image data packets -> IMAGE_UPLOAD characteristic
+        # 3. DATCP (data complete) -> COMMAND characteristic
+        success = await self.upload_image(bitmap_data)
+
+        if success:
+            # Set display parameters after upload
+            await self.set_scroll_mode(scroll_mode)
+            await self.set_brightness(brightness)
+            await self.set_speed(speed)
+
+        return success
 
     async def send_raw_command(self, packet: bytes) -> None:
         """

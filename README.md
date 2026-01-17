@@ -97,6 +97,123 @@ pip install bleak
    python badge-1.py
    ```
 
+## Badge Controller CLI
+
+The `badge-controller` CLI provides a convenient way to interact with your LED badge. First, set your badge address as an environment variable:
+
+```bash
+# Set your badge address (find it using the scan command)
+export BADGE_ADDR="AA:BB:CC:DD:EE:FF"
+```
+
+### Available Commands
+
+#### Scan for devices
+```bash
+# Find nearby BLE devices (default 10 second timeout)
+badge-controller scan
+
+# Custom timeout
+badge-controller scan --timeout 20
+```
+
+#### Send text to the badge
+```bash
+# Basic text (scrolls left by default)
+# NOT WORKING
+badge-controller text $BADGE_ADDR "Hello World"
+
+# Static text (no scrolling)
+# scroll option works as expected. left right and static
+badge-controller text $BADGE_ADDR "Hi!" --scroll static
+
+# Scroll right
+badge-controller text $BADGE_ADDR "Welcome" --scroll right
+
+# With custom brightness (0-255)
+# brightness works as expected, but is not saved between badge power cycles.
+badge-controller text $BADGE_ADDR "Bright!" --brightness 255
+
+# With custom speed (0-255)
+#speed works as expected, but is not saved between badge power cycles.
+badge-controller text $BADGE_ADDR "Fast scroll" --speed 100
+
+# Combine options
+badge-controller text $BADGE_ADDR "Custom" --scroll left --brightness 200 --speed 75
+```
+
+#### Set brightness
+```bash
+# Set brightness level (0-255)
+# works, but not saved between badge power cycles
+badge-controller brightness $BADGE_ADDR 128
+badge-controller brightness $BADGE_ADDR 255  # Maximum
+```
+
+#### Set scroll/transition speed
+```bash
+# Set speed level (0-255)
+#works, but not saved between badge power cycles
+badge-controller speed $BADGE_ADDR 50
+badge-controller speed $BADGE_ADDR 100  # Faster
+```
+
+#### Play animations
+```bash
+# Play animation by ID
+badge-controller animation $BADGE_ADDR 1
+badge-controller animation $BADGE_ADDR 2
+```
+No animation at index 0. Other animations are as follows
+
+1. Falling leaves turn into flashing word love.
+2. Four animated hearts
+3. Cheers beer tankards
+4. The word COME builds with flashing face
+5. Two radiating and flashing hearts
+6. Animated Dollar signs
+7. Two fish kissing
+8. Animal face appears and radiates thought waves. I really have no idea what it is supposed to be!
+
+Only eight animations
+
+#### Show stored images
+```bash
+# Show image by ID
+# NEEDS TESTING
+badge-controller image $BADGE_ADDR 1
+badge-controller image $BADGE_ADDR 2
+```
+
+#### Check stored images
+```bash
+# Query what images are stored on the badge
+badge-controller check $BADGE_ADDR
+```
+
+This gives a response like this
+
+```txt
+Checking stored images...
+Response: 0b535459504531325834384e00000000
+Decoded:
+          STYPE12X48N
+```
+
+#### Interactive mode
+```bash
+# Start interactive session for experimentation
+badge-controller interactive $BADGE_ADDR
+
+# In interactive mode, use commands like:
+#   brightness 128
+#   animation 1
+#   speed 50
+#   image 1
+#   check
+#   quit
+```
+
 ## Project Structure
 
 ```

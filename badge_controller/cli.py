@@ -3,6 +3,7 @@ Command-line interface for BLE LED Badge controller.
 
 Usage:
     badge-controller scan
+    badge-controller text <address> <text> [options]
     badge-controller brightness <address> <level>
     badge-controller animation <address> <id>
     badge-controller check <address>
@@ -13,6 +14,7 @@ import asyncio
 import sys
 
 from .badge import Badge, scan_for_badges
+from .commands import ScrollMode
 
 
 async def cmd_scan(args: argparse.Namespace) -> int:
@@ -90,6 +92,41 @@ async def cmd_check(args: argparse.Namespace) -> int:
                 pass
         else:
             print("No response received.")
+    return 0
+
+
+async def cmd_text(args: argparse.Namespace) -> int:
+    """Send text to the badge."""
+    print(f"Connecting to {args.address}...")
+    async with Badge(args.address) as badge:
+        print(f"Sending text: {args.text}")
+        
+        # Parse scroll mode
+        scroll_mode = ScrollMode.LEFT  # Default
+        if args.scroll:
+            scroll_lower = args.scroll.lower()
+            if scroll_lower == "static" or scroll_lower == "none":
+                scroll_mode = ScrollMode.STATIC
+            elif scroll_lower == "left":
+                scroll_mode = ScrollMode.LEFT
+            elif scroll_lower == "right":
+                scroll_mode = ScrollMode.RIGHT
+            else:
+                print(f"Warning: Unknown scroll mode '{args.scroll}', using LEFT")
+        
+        success = await badge.send_text(
+            args.text,
+            scroll_mode=scroll_mode,
+            brightness=args.brightness,
+            speed=args.speed
+        )
+        
+        if success:
+            print("Text sent successfully!")
+        else:
+            print("Failed to send text.")
+            return 1
+    
     return 0
 
 
@@ -177,6 +214,17 @@ def main() -> int:
     check_parser = subparsers.add_parser("check", help="Check stored images")
     check_parser.add_argument("address", help="Badge BLE address")
 
+    # Text command
+    text_parser = subparsers.add_parser("text", help="Send text to the badge")
+    text_parser.add_argument("address", help="Badge BLE address")
+    text_parser.add_argument("text", help="Text to display")
+    text_parser.add_argument("-s", "--scroll", default="left",
+                            help="Scroll mode: static, left, right (default: left)")
+    text_parser.add_argument("-b", "--brightness", type=int, default=128,
+                            help="Brightness level 0-255 (default: 128)")
+    text_parser.add_argument("--speed", type=int, default=50,
+                            help="Scroll speed 0-255 (default: 50)")
+
     # Interactive command
     int_parser = subparsers.add_parser("interactive", help="Interactive experimentation mode")
     int_parser.add_argument("address", help="Badge BLE address")
@@ -195,6 +243,7 @@ def main() -> int:
         "speed": cmd_speed,
         "image": cmd_image,
         "check": cmd_check,
+        "text": cmd_text,
         "interactive": cmd_interactive,
     }
 

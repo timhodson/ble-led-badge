@@ -19,6 +19,9 @@ class Animation(IntEnum):
     ANIM_3 = 3
     ANIM_4 = 4
     ANIM_5 = 5
+    ANIM_6 = 6
+    ANIM_7 = 7
+    ANIM_8 = 8
 
 
 class ScrollMode(IntEnum):

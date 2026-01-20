@@ -185,14 +185,16 @@ class Command:
         Badge will respond with DATSOK via NOTIFY characteristic.
 
         Args:
-            length: Total length of image data in bytes (max 255)
+            length: Total length of image data in bytes (max 65535)
 
         Returns:
             Encrypted command packet
         """
-        # Format from trace analysis: DATS[0x00][length][0x00][0x00]
-        # Length goes in second byte, not split across two bytes
-        return build_encrypted_packet("DATS", 0x00, length & 0xFF, 0x00, 0x00)
+        # Format from trace analysis: DATS[length_high][length_low][0x00][0x00]
+        # Length is 16-bit big-endian (e.g., 576 bytes = 0x0240 -> params 0x02, 0x40)
+        length_high = (length >> 8) & 0xFF
+        length_low = length & 0xFF
+        return build_encrypted_packet("DATS", length_high, length_low, 0x00, 0x00)
 
 
 class ImageUpload:

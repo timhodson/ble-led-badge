@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Font Editor</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #e0e0e0;
+        }
+        h1 {
+            margin: 0 0 20px 0;
+            font-size: 1.5em;
+            color: #fff;
+        }
+        .section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #2a2a2a;
+            border-radius: 8px;
+        }
+        .section-title {
+            font-size: 0.9em;
+            color: #888;
+            margin-bottom: 10px;
+        }
+        .char-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+        .char-btn {
+            width: 32px;
+            height: 32px;
+            border: 1px solid #444;
+            background: #333;
+            color: #e0e0e0;
+            cursor: pointer;
+            font-size: 14px;
+            border-radius: 4px;
+            transition: all 0.1s;
+        }
+        .char-btn:hover {
+            background: #444;
+            border-color: #666;
+        }
+        .char-btn.selected {
+            background: #4a90d9;
+            border-color: #5aa0e9;
+            color: #fff;
+        }
+        .editor-container {
+            display: flex;
+            align-items: flex-start;
+            gap: 20px;
+        }
+        .pixel-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 2px;
+            background: #111;
+            padding: 10px;
+            border-radius: 8px;
+        }
+        .pixel {
+            width: 36px;
+            height: 36px;
+            border: 1px solid #333;
+            background: #222;
+            cursor: pointer;
+            border-radius: 2px;
+            transition: background 0.1s;
+        }
+        .pixel:hover {
+            border-color: #666;
+        }
+        .pixel.on {
+            background: #ff4444;
+            border-color: #ff6666;
+            box-shadow: 0 0 8px rgba(255, 68, 68, 0.5);
+        }
+        .labels {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .row-labels, .col-labels {
+            display: flex;
+            gap: 2px;
+        }
+        .col-labels {
+            margin-left: 10px;
+            margin-top: 5px;
+        }
+        .label {
+            width: 36px;
+            text-align: center;
+            font-size: 11px;
+            color: #666;
+        }
+        .selected-char {
+            font-size: 1.2em;
+            margin-bottom: 10px;
+        }
+        .selected-char span {
+            color: #4a90d9;
+            font-weight: bold;
+        }
+        textarea {
+            width: 100%;
+            height: 120px;
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+            font-size: 12px;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 10px;
+            resize: vertical;
+        }
+        textarea:focus {
+            outline: none;
+            border-color: #4a90d9;
+        }
+        .button-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.1s;
+        }
+        .btn-primary {
+            background: #4a90d9;
+            color: #fff;
+        }
+        .btn-primary:hover {
+            background: #5aa0e9;
+        }
+        .btn-secondary {
+            background: #444;
+            color: #e0e0e0;
+        }
+        .btn-secondary:hover {
+            background: #555;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        .preview-section {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .preview-input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #444;
+            border-radius: 4px;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            font-size: 14px;
+        }
+        .preview-input:focus {
+            outline: none;
+            border-color: #4a90d9;
+        }
+        .preview-canvas {
+            background: #111;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        .orientations-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+        }
+        .orientation-box {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 6px;
+            padding: 10px;
+        }
+        .orientation-box.matched {
+            border-color: #4a90d9;
+            background: #1a2a3a;
+        }
+        .orientation-title {
+            font-size: 11px;
+            color: #888;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+        .orientation-title code {
+            color: #4a90d9;
+            font-size: 10px;
+        }
+        .mini-grid {
+            display: grid;
+            grid-template-columns: repeat(9, 1fr);
+            gap: 1px;
+            background: #000;
+            padding: 2px;
+            border-radius: 3px;
+        }
+        .mini-grid.transposed {
+            grid-template-columns: repeat(8, 1fr);
+        }
+        .mini-grid.six-col {
+            grid-template-columns: repeat(6, 1fr);
+        }
+        .mini-pixel {
+            width: 12px;
+            height: 12px;
+            background: #222;
+        }
+        .mini-pixel.on {
+            background: #ff4444;
+        }
+        .use-btn {
+            margin-top: 8px;
+            width: 100%;
+            padding: 4px 8px;
+            font-size: 11px;
+            background: #333;
+            border: 1px solid #444;
+            color: #aaa;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .use-btn:hover {
+            background: #444;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <h1>Font Editor</h1>
+
+    <div class="section">
+        <div class="section-title">Characters</div>
+        <div class="char-grid" id="charGrid"></div>
+    </div>
+
+    <div class="section">
+        <div class="selected-char">Selected: <span id="selectedChar">A</span></div>
+        <div class="editor-container">
+            <div>
+                <div class="pixel-grid" id="pixelGrid"></div>
+                <div class="col-labels" id="colLabels"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">All Possible Orientations (find the one matching your badge)</div>
+        <div class="orientations-grid" id="orientationsGrid"></div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Preview</div>
+        <div class="preview-section">
+            <input type="text" class="preview-input" id="previewInput" value="Hello World" placeholder="Type text to preview...">
+        </div>
+        <canvas class="preview-canvas" id="previewCanvas" width="600" height="50"></canvas>
+    </div>
+
+    <div class="section">
+        <div class="section-title">JSON Data</div>
+        <textarea id="jsonOutput" spellcheck="false"></textarea>
+        <div class="button-row">
+            <button class="btn-primary" onclick="saveJson()">Save JSON</button>
+            <button class="btn-secondary" onclick="document.getElementById('loadInput').click()">Load JSON</button>
+            <input type="file" id="loadInput" accept=".json" onchange="loadJson(event)">
+            <button class="btn-secondary" onclick="applyJson()">Apply JSON</button>
+        </div>
+    </div>
+
+    <script>
+        let font = {};
+        let selectedChar = 'A';
+
+        // Initialize
+        async function init() {
+            try {
+                const response = await fetch('font.json');
+                font = await response.json();
+            } catch (e) {
+                console.log('Could not load font.json, using empty font');
+                font = {};
+            }
+            renderCharGrid();
+            selectChar(selectedChar);
+            updatePreview();
+        }
+
+        function renderCharGrid() {
+            const grid = document.getElementById('charGrid');
+            grid.innerHTML = '';
+
+            // Define character order
+            const chars = Object.keys(font).sort((a, b) => {
+                // Sort: uppercase, lowercase, numbers, punctuation
+                const order = (c) => {
+                    if (c >= 'A' && c <= 'Z') return 0;
+                    if (c >= 'a' && c <= 'z') return 1;
+                    if (c >= '0' && c <= '9') return 2;
+                    return 3;
+                };
+                const diff = order(a) - order(b);
+                if (diff !== 0) return diff;
+                return a.localeCompare(b);
+            });
+
+            chars.forEach(char => {
+                const btn = document.createElement('button');
+                btn.className = 'char-btn' + (char === selectedChar ? ' selected' : '');
+                btn.textContent = char === ' ' ? '\u00A0' : char;
+                btn.onclick = () => selectChar(char);
+                grid.appendChild(btn);
+            });
+        }
+
+        function selectChar(char) {
+            selectedChar = char;
+            document.getElementById('selectedChar').textContent = char === ' ' ? '(space)' : char;
+
+            // Update button states
+            document.querySelectorAll('.char-btn').forEach(btn => {
+                const btnChar = btn.textContent === '\u00A0' ? ' ' : btn.textContent;
+                btn.classList.toggle('selected', btnChar === char);
+            });
+
+            renderPixelGrid();
+            renderOrientations();
+        }
+
+        // Byte layout for 6x12 display:
+        // Byte 0: col 0, rows 0-7 (bit 7 = row 0)
+        // Byte 1: col 0 rows 8-11 (bits 7-4) + col 1 rows 8-11 (bits 3-0)
+        // Byte 2: col 1, rows 0-7
+        // Byte 3: col 2, rows 0-7
+        // Byte 4: col 2 rows 8-11 (bits 7-4) + col 3 rows 8-11 (bits 3-0)
+        // Byte 5: col 3, rows 0-7
+        // Byte 6: col 4, rows 0-7
+        // Byte 7: col 4 rows 8-11 (bits 7-4) + col 5 rows 8-11 (bits 3-0)
+        // Byte 8: col 5, rows 0-7
+
+        function getPixelFromBytes(data, col, row) {
+            if (row < 8) {
+                // Rows 0-7: use bytes 0, 2, 3, 5, 6, 8 for cols 0-5
+                const byteMap = [0, 2, 3, 5, 6, 8];
+                const byteIdx = byteMap[col];
+                const bit = 7 - row;
+                return (data[byteIdx] >> bit) & 1;
+            } else {
+                // Rows 8-11: use bytes 1, 4, 7 (nibble-packed)
+                const nibbleByteMap = [1, 1, 4, 4, 7, 7];
+                const byteIdx = nibbleByteMap[col];
+                const isUpperNibble = (col % 2 === 0);
+                const rowInNibble = row - 8;
+                const bit = isUpperNibble ? (7 - rowInNibble) : (3 - rowInNibble);
+                return (data[byteIdx] >> bit) & 1;
+            }
+        }
+
+        function setPixelInBytes(data, col, row, value) {
+            if (row < 8) {
+                const byteMap = [0, 2, 3, 5, 6, 8];
+                const byteIdx = byteMap[col];
+                const bit = 7 - row;
+                if (value) {
+                    data[byteIdx] |= (1 << bit);
+                } else {
+                    data[byteIdx] &= ~(1 << bit);
+                }
+            } else {
+                const nibbleByteMap = [1, 1, 4, 4, 7, 7];
+                const byteIdx = nibbleByteMap[col];
+                const isUpperNibble = (col % 2 === 0);
+                const rowInNibble = row - 8;
+                const bit = isUpperNibble ? (7 - rowInNibble) : (3 - rowInNibble);
+                if (value) {
+                    data[byteIdx] |= (1 << bit);
+                } else {
+                    data[byteIdx] &= ~(1 << bit);
+                }
+            }
+        }
+
+        function renderPixelGrid() {
+            const grid = document.getElementById('pixelGrid');
+            grid.innerHTML = '';
+
+            const charData = font[selectedChar] || [0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+            // 6 columns x 12 rows
+            for (let row = 0; row < 12; row++) {
+                for (let col = 0; col < 6; col++) {
+                    const pixel = document.createElement('div');
+                    pixel.className = 'pixel';
+
+                    const isOn = getPixelFromBytes(charData, col, row);
+                    if (isOn) pixel.classList.add('on');
+
+                    pixel.onclick = () => togglePixel(col, row);
+                    grid.appendChild(pixel);
+                }
+            }
+
+            // Render column labels
+            const colLabels = document.getElementById('colLabels');
+            colLabels.innerHTML = '';
+            for (let col = 0; col < 6; col++) {
+                const label = document.createElement('div');
+                label.className = 'label';
+                label.textContent = col;
+                colLabels.appendChild(label);
+            }
+
+            updateJsonOutput();
+        }
+
+        function togglePixel(col, row) {
+            if (!font[selectedChar]) {
+                font[selectedChar] = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+            }
+
+            const currentValue = getPixelFromBytes(font[selectedChar], col, row);
+            setPixelInBytes(font[selectedChar], col, row, currentValue ? 0 : 1);
+
+            renderPixelGrid();
+            renderOrientations();
+            updatePreview();
+        }
+
+
+        function updateJsonOutput() {
+            const output = document.getElementById('jsonOutput');
+            output.value = JSON.stringify(font, null, 2);
+        }
+
+        function saveJson() {
+            const blob = new Blob([JSON.stringify(font, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'font.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function loadJson(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    font = JSON.parse(e.target.result);
+                    renderCharGrid();
+                    selectChar(selectedChar);
+                    updatePreview();
+                } catch (err) {
+                    alert('Invalid JSON file');
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        function applyJson() {
+            try {
+                font = JSON.parse(document.getElementById('jsonOutput').value);
+                renderCharGrid();
+                selectChar(selectedChar);
+                renderOrientations();
+                updatePreview();
+            } catch (err) {
+                alert('Invalid JSON: ' + err.message);
+            }
+        }
+
+        function updatePreview() {
+            const canvas = document.getElementById('previewCanvas');
+            const ctx = canvas.getContext('2d');
+            const text = document.getElementById('previewInput').value;
+
+            // Clear canvas
+            ctx.fillStyle = '#111';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw each character (6 cols x 12 rows)
+            const pixelSize = 3;
+            const charWidth = 6 * pixelSize;
+            const charHeight = 12 * pixelSize;
+            const yOffset = (canvas.height - charHeight) / 2;
+
+            ctx.fillStyle = '#ff4444';
+
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                const charData = font[char] || font[' '] || [0, 0, 0, 0, 0, 0, 0, 0, 0];
+                const xStart = i * charWidth;
+
+                // Draw 6x12 using correct byte layout
+                for (let col = 0; col < 6; col++) {
+                    for (let row = 0; row < 12; row++) {
+                        if (getPixelFromBytes(charData, col, row)) {
+                            ctx.fillRect(
+                                xStart + col * pixelSize,
+                                yOffset + row * pixelSize,
+                                pixelSize - 1,
+                                pixelSize - 1
+                            );
+                        }
+                    }
+                }
+            }
+        }
+
+        function renderOrientations() {
+            const container = document.getElementById('orientationsGrid');
+            container.innerHTML = '';
+
+            const charData = font[selectedChar] || [0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+            // Show the correct 6x12 interpretation with the discovered byte layout
+            const correctBox = document.createElement('div');
+            correctBox.className = 'orientation-box matched';
+            correctBox.innerHTML = `<div class="orientation-title"><strong>✓ Badge Display (6×12)</strong><br><code>Interleaved nibble layout</code></div>`;
+
+            const correctGrid = document.createElement('div');
+            correctGrid.className = 'mini-grid six-col';
+            for (let row = 0; row < 12; row++) {
+                for (let col = 0; col < 6; col++) {
+                    const pixel = document.createElement('div');
+                    pixel.className = 'mini-pixel';
+                    if (getPixelFromBytes(charData, col, row)) {
+                        pixel.classList.add('on');
+                    }
+                    correctGrid.appendChild(pixel);
+                }
+            }
+            correctBox.appendChild(correctGrid);
+            container.appendChild(correctBox);
+
+            // Show byte layout info
+            const infoBox = document.createElement('div');
+            infoBox.className = 'orientation-box';
+            infoBox.innerHTML = `
+                <div class="orientation-title"><strong>Byte Layout</strong></div>
+                <div style="font-size: 10px; color: #888; line-height: 1.4;">
+                    <div>B0: col0 r0-7</div>
+                    <div>B1: col0 r8-11 | col1 r8-11</div>
+                    <div>B2: col1 r0-7</div>
+                    <div>B3: col2 r0-7</div>
+                    <div>B4: col2 r8-11 | col3 r8-11</div>
+                    <div>B5: col3 r0-7</div>
+                    <div>B6: col4 r0-7</div>
+                    <div>B7: col4 r8-11 | col5 r8-11</div>
+                    <div>B8: col5 r0-7</div>
+                </div>
+            `;
+            container.appendChild(infoBox);
+        }
+
+        // Event listeners
+        document.getElementById('previewInput').addEventListener('input', updatePreview);
+
+        // Start
+        init();
+    </script>
+</body>
+</html>

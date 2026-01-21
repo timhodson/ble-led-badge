@@ -22,6 +22,7 @@ Or use the CLI:
 from .badge import Badge, scan_for_badges, find_badge_by_name
 from .commands import Command, Animation, ImageUpload, ScrollMode
 from .protocol import Characteristics, SERVICE_UUID
+from .text_renderer import TextRenderer
 
 __version__ = "0.1.0"
 
@@ -32,6 +33,9 @@ __all__ = [
     # Utility functions
     "scan_for_badges",
     "find_badge_by_name",
+
+    # Text rendering
+    "TextRenderer",
 
     # Low-level access
     "Command",

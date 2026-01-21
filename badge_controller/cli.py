@@ -19,14 +19,21 @@ from .commands import ScrollMode
 
 async def cmd_scan(args: argparse.Namespace) -> int:
     """Scan for nearby BLE devices."""
-    print(f"Scanning for BLE devices ({args.timeout}s)...")
-    devices = await scan_for_badges(timeout=args.timeout)
+    filter_badges = not args.all
+    scan_type = "all BLE devices" if args.all else "LED badges"
+    print(f"Scanning for {scan_type} ({args.timeout}s)...")
+
+    devices = await scan_for_badges(timeout=args.timeout, filter_badges=filter_badges)
 
     if not devices:
-        print("No devices found.")
+        if filter_badges:
+            print("No badges found. Try --all to see all BLE devices.")
+        else:
+            print("No devices found.")
         return 1
 
-    print(f"\nFound {len(devices)} device(s):\n")
+    device_type = "device" if args.all else "badge"
+    print(f"\nFound {len(devices)} {device_type}(s):\n")
     for i, device in enumerate(devices, 1):
         name = device.name or "(unnamed)"
         print(f"  {i}. {name}")
@@ -135,12 +142,19 @@ async def cmd_interactive(args: argparse.Namespace) -> int:
     print(f"Connecting to {args.address}...")
     async with Badge(args.address) as badge:
         print("Connected! Interactive mode.")
-        print("Commands: brightness <0-255>, animation <id>, speed <0-255>, image <id>, check, quit")
+        print("Commands:")
+        print("  text <message>      - Send text to display")
+        print("  brightness <0-255>  - Set brightness")
+        print("  animation <id>      - Play animation")
+        print("  speed <0-255>       - Set scroll speed")
+        print("  image <id>          - Show stored image")
+        print("  check               - Check stored images")
+        print("  quit                - Exit")
         print()
 
         while True:
             try:
-                line = input("> ").strip().lower()
+                line = input("> ").strip()
             except (EOFError, KeyboardInterrupt):
                 print("\nExiting.")
                 break
@@ -149,11 +163,16 @@ async def cmd_interactive(args: argparse.Namespace) -> int:
                 continue
 
             parts = line.split()
-            cmd = parts[0]
+            cmd = parts[0].lower()
 
             try:
                 if cmd in ("quit", "exit", "q"):
                     break
+                elif cmd == "text" and len(parts) >= 2:
+                    # Join remaining parts to preserve spaces in text
+                    text_content = line[len(parts[0]):].strip()
+                    await badge.send_text(text_content)
+                    print(f"OK - sent: {text_content}")
                 elif cmd == "brightness" and len(parts) == 2:
                     await badge.set_brightness(int(parts[1]))
                     print("OK")
@@ -170,7 +189,7 @@ async def cmd_interactive(args: argparse.Namespace) -> int:
                     response = await badge.check_images()
                     print(f"Response: {response.hex() if response else 'None'}")
                 else:
-                    print("Unknown command. Try: brightness, animation, speed, image, check, quit")
+                    print("Unknown command. Try: text, brightness, animation, speed, image, check, quit")
             except Exception as e:
                 print(f"Error: {e}")
 
@@ -186,9 +205,11 @@ def main() -> int:
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # Scan command
-    scan_parser = subparsers.add_parser("scan", help="Scan for nearby BLE devices")
+    scan_parser = subparsers.add_parser("scan", help="Scan for nearby LED badges")
     scan_parser.add_argument("-t", "--timeout", type=float, default=10.0,
                              help="Scan timeout in seconds (default: 10)")
+    scan_parser.add_argument("-a", "--all", action="store_true",
+                             help="Show all BLE devices, not just badges")
 
     # Brightness command
     bright_parser = subparsers.add_parser("brightness", help="Set badge brightness")

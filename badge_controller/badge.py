@@ -297,33 +297,72 @@ class Badge:
 
 # Utility functions
 
-async def scan_for_badges(timeout: float = 10.0) -> List[BLEDevice]:
+async def scan_for_badges(
+    timeout: float = 10.0,
+    filter_badges: bool = True
+) -> List[BLEDevice]:
     """
     Scan for nearby BLE LED badges.
 
     Args:
         timeout: Scan duration in seconds
+        filter_badges: If True, only return devices that appear to be LED badges
+                      (by service UUID or name pattern). If False, return all devices.
 
     Returns:
-        List of discovered devices (filter by name/service as needed)
+        List of discovered BLE devices
     """
-    devices = await BleakScanner.discover(timeout=timeout)
-    # Could filter by SERVICE_UUID if devices advertise it
-    return devices
+    devices = await BleakScanner.discover(
+        timeout=timeout,
+        return_adv=True
+    )
+
+    if not filter_badges:
+        return [device for device, _ in devices.values()]
+
+    # Filter for likely LED badge devices
+    badges = []
+    # Common name patterns for LED badges
+    badge_name_patterns = ['led', 'badge', 'mask', 'shining', 'lsled']
+
+    for device, adv_data in devices.values():
+        is_badge = False
+
+        # Check if device advertises the badge service UUID
+        if adv_data.service_uuids:
+            if SERVICE_UUID.lower() in [uuid.lower() for uuid in adv_data.service_uuids]:
+                is_badge = True
+
+        # Also check device name for common patterns
+        if not is_badge and device.name:
+            name_lower = device.name.lower()
+            if any(pattern in name_lower for pattern in badge_name_patterns):
+                is_badge = True
+
+        if is_badge:
+            badges.append(device)
+
+    return badges
 
 
-async def find_badge_by_name(name_pattern: str, timeout: float = 10.0) -> Optional[BLEDevice]:
+async def find_badge_by_name(
+    name_pattern: str,
+    timeout: float = 10.0,
+    filter_badges: bool = False
+) -> Optional[BLEDevice]:
     """
     Find a badge by name pattern.
 
     Args:
         name_pattern: Substring to match in device name
         timeout: Scan duration in seconds
+        filter_badges: If True, only search among filtered badge devices.
+                      If False (default), search all devices.
 
     Returns:
         First matching device, or None if not found
     """
-    devices = await scan_for_badges(timeout)
+    devices = await scan_for_badges(timeout, filter_badges=filter_badges)
     for device in devices:
         if device.name and name_pattern.lower() in device.name.lower():
             return device

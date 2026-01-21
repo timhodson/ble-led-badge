@@ -3,3 +3,11 @@ LightBlue*
 *.pyc
 __pycache__/*
 *.log
+.claude/*
+.vscode/*
+.DS_Store
+env/
+venv/
+.env
+.venv/
+.idea/

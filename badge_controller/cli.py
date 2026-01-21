@@ -13,6 +13,12 @@ import argparse
 import asyncio
 import sys
 
+# Enable command history for interactive mode (up/down arrows)
+try:
+    import readline  # noqa: F401 - import enables history for input()
+except ImportError:
+    pass  # readline not available on some platforms
+
 from .badge import Badge, scan_for_badges
 from .commands import ScrollMode
 
@@ -144,13 +150,86 @@ async def cmd_interactive(args: argparse.Namespace) -> int:
         print("Connected! Interactive mode.")
         print("Commands:")
         print("  text <message>      - Send text to display")
+        print("  scroll <mode>       - Set scroll mode (static, left, right, up, down, snow)")
         print("  brightness <0-255>  - Set brightness")
         print("  animation <id>      - Play animation")
         print("  speed <0-255>       - Set scroll speed")
         print("  image <id>          - Show stored image")
         print("  check               - Check stored images")
+        print("  status              - Show current settings")
         print("  quit                - Exit")
         print()
+        print("Tip: Chain commands with ; (e.g., scroll static; brightness 200; text Hello)")
+        print()
+
+        # Current settings
+        current_scroll = ScrollMode.LEFT
+        current_brightness = 128
+        current_speed = 50
+
+        scroll_modes = {
+            'static': ScrollMode.STATIC,
+            'left': ScrollMode.LEFT,
+            'right': ScrollMode.RIGHT,
+            'up': ScrollMode.UP,
+            'down': ScrollMode.DOWN,
+            'snow': ScrollMode.SNOW,
+        }
+
+        async def run_command(cmd_line):
+            """Execute a single command. Returns False to quit, True to continue."""
+            nonlocal current_scroll, current_brightness, current_speed
+
+            cmd_line = cmd_line.strip()
+            if not cmd_line:
+                return True
+
+            parts = cmd_line.split()
+            cmd = parts[0].lower()
+
+            if cmd in ("quit", "exit", "q"):
+                return False
+            elif cmd == "text" and len(parts) >= 2:
+                # Join remaining parts to preserve spaces in text
+                text_content = cmd_line[len(parts[0]):].strip()
+                await badge.send_text(
+                    text_content,
+                    scroll_mode=current_scroll,
+                    brightness=current_brightness,
+                    speed=current_speed
+                )
+                print(f"OK - sent: {text_content}")
+            elif cmd == "scroll" and len(parts) == 2:
+                mode_name = parts[1].lower()
+                if mode_name in scroll_modes:
+                    current_scroll = scroll_modes[mode_name]
+                    await badge.set_scroll_mode(current_scroll)
+                    print(f"OK - scroll mode: {mode_name}")
+                else:
+                    print(f"Unknown mode. Try: {', '.join(scroll_modes.keys())}")
+            elif cmd == "brightness" and len(parts) == 2:
+                current_brightness = int(parts[1])
+                await badge.set_brightness(current_brightness)
+                print("OK")
+            elif cmd == "animation" and len(parts) == 2:
+                await badge.play_animation(int(parts[1]))
+                print("OK")
+            elif cmd == "speed" and len(parts) == 2:
+                current_speed = int(parts[1])
+                await badge.set_speed(current_speed)
+                print("OK")
+            elif cmd == "image" and len(parts) == 2:
+                await badge.show_image(int(parts[1]))
+                print("OK")
+            elif cmd == "check":
+                response = await badge.check_images()
+                print(f"Response: {response.hex() if response else 'None'}")
+            elif cmd == "status":
+                mode_name = [k for k, v in scroll_modes.items() if v == current_scroll][0]
+                print(f"Scroll: {mode_name}, Brightness: {current_brightness}, Speed: {current_speed}")
+            else:
+                print("Unknown command. Try: text, scroll, brightness, animation, speed, image, check, quit")
+            return True
 
         while True:
             try:
@@ -162,34 +241,17 @@ async def cmd_interactive(args: argparse.Namespace) -> int:
             if not line:
                 continue
 
-            parts = line.split()
-            cmd = parts[0].lower()
+            # Split by semicolon to allow multiple commands
+            commands = line.split(';')
 
             try:
-                if cmd in ("quit", "exit", "q"):
+                should_continue = True
+                for cmd_line in commands:
+                    should_continue = await run_command(cmd_line)
+                    if not should_continue:
+                        break
+                if not should_continue:
                     break
-                elif cmd == "text" and len(parts) >= 2:
-                    # Join remaining parts to preserve spaces in text
-                    text_content = line[len(parts[0]):].strip()
-                    await badge.send_text(text_content)
-                    print(f"OK - sent: {text_content}")
-                elif cmd == "brightness" and len(parts) == 2:
-                    await badge.set_brightness(int(parts[1]))
-                    print("OK")
-                elif cmd == "animation" and len(parts) == 2:
-                    await badge.play_animation(int(parts[1]))
-                    print("OK")
-                elif cmd == "speed" and len(parts) == 2:
-                    await badge.set_speed(int(parts[1]))
-                    print("OK")
-                elif cmd == "image" and len(parts) == 2:
-                    await badge.show_image(int(parts[1]))
-                    print("OK")
-                elif cmd == "check":
-                    response = await badge.check_images()
-                    print(f"Response: {response.hex() if response else 'None'}")
-                else:
-                    print("Unknown command. Try: text, brightness, animation, speed, image, check, quit")
             except Exception as e:
                 print(f"Error: {e}")
 

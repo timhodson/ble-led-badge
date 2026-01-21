@@ -1,77 +1,16 @@
 # BLE LED Badge Controller
 
-A Python project for controlling BLE-enabled LED badges via Bluetooth Low Energy (BLE). This project allows you to send text and graphics to LED name badges that use the standard BLE LED badge protocol.
+A Python library and CLI for controlling Bluetooth Low Energy LED name badges. Supports sending text, controlling brightness, animations, and includes a web-based font editor for creating custom characters.
 
-## Overview
+## Features
 
-This project provides tools to scan for BLE devices, connect to LED badges, and send custom text messages that are rendered as dot matrix graphics on the badge display.
-
-## Files
-
-### Main Application Files
-
-#### [badge-1.py](badge-1.py)
-Main script to connect to a BLE LED badge and write display data. Contains pre-defined write requests for sending specific text and graphics to the badge. Uses the Bleak library for BLE communication.
-
-**Key features:**
-- Connects to a specific badge by MAC address
-- Sends a series of hexadecimal write requests to the FEE1 characteristic
-- Demonstrates the basic protocol for badge communication
-
-#### [character_mapper.py](character_mapper.py)
-A comprehensive character mapping class that converts text strings into 8x11 dot matrix representations suitable for LED badge displays.
-
-**Key features:**
-- `CharacterMapper` class with support for both GFX fonts and legacy bitmap fonts
-- Converts individual characters to bitmap matrices
-- Validates character support and string compatibility
-- Methods for batch conversion of strings to display matrices
-- Legacy font includes full ASCII character set with dot matrix patterns
-
-### Utility Scripts
-
-#### [ble_scan.py](ble_scan.py)
-Simple BLE device scanner that discovers and lists all available Bluetooth Low Energy devices in range.
-
-**Usage:** Run to find the MAC address of your LED badge before connecting.
-
-#### [list_characteristics.py](list_characteristics.py)
-Diagnostic tool to enumerate all BLE services, characteristics, and descriptors on a connected device. Attempts to read values from each characteristic when possible.
-
-**Usage:** Helpful for exploring the BLE structure of your badge or debugging connection issues.
-
-#### [experiment.py](experiment.py)
-Test script demonstrating the `CharacterMapper` functionality. Converts a sample string ("Hello, BLE!") to dot matrix format and prints the binary representation.
-
-**Usage:** Run to see how text is converted to bitmap matrices.
-
-#### [test_gfx_fonts.py](test_gfx_fonts.py)
-Comprehensive test suite for the character mapping system. Demonstrates visual rendering of character bitmaps with multiple display styles.
-
-**Features:**
-- Tests both GFX and legacy font systems
-- Multiple visualization styles (hash, block, ASCII, minimal)
-- Visual comparison of different font rendering methods
-- Useful for debugging font implementations
-
-### Configuration and Documentation
-
-#### [pyproject.toml](pyproject.toml)
-Poetry project configuration file defining:
-- Project metadata (name, version, author, license)
-- Python version requirement (^3.8)
-- Dependencies (Bleak ^0.20.2 for BLE communication)
-
-#### [Analysis.md](Analysis.md)
-Technical documentation containing captured BLE packet data for various badge operations:
-- Turn badge on/off commands
-- Fast and slow scroll configurations
-- Raw hex packet dumps for reverse engineering
-
-## Dependencies
-
-- **Python 3.8+**
-- **Bleak 0.20.2+** - Cross-platform BLE library for Python
+- Scan for LED badge devices
+- Send text with various scroll modes (static, left, right, up, down, snow)
+- Control brightness and scroll speed
+- Play built-in animations
+- Interactive mode for real-time experimentation
+- Web-based font editor with multi-width character support
+- Python API for integration into other applications
 
 ## Installation
 
@@ -79,169 +18,284 @@ Technical documentation containing captured BLE packet data for various badge op
 # Install with poetry
 poetry install
 
-# Or install dependencies directly
-pip install bleak
+# Or install from local path
+pip install /path/to/ble-led-badge
+
+# Or install in development mode
+pip install -e /path/to/ble-led-badge
 ```
+
+## Dependencies
+
+- **Python 3.8+**
+- **Bleak** - Cross-platform BLE library
+- **pycryptodome** - AES encryption for badge protocol
 
 ## Quick Start
 
 1. **Find your badge:**
    ```bash
-   python ble_scan.py
+   badge-controller scan
    ```
 
-2. **Update the MAC address** in [badge-1.py](badge-1.py) with your badge's address
-
-3. **Run the badge controller:**
+2. **Set your badge address:**
    ```bash
-   python badge-1.py
+   export BADGE_ADDR="AA:BB:CC:DD:EE:FF"
    ```
 
-## Badge Controller CLI
+3. **Send text:**
+   ```bash
+   badge-controller text $BADGE_ADDR "Hello World"
+   ```
 
-The `badge-controller` CLI provides a convenient way to interact with your LED badge. First, set your badge address as an environment variable:
+## CLI Commands
+
+### Scan for devices
 
 ```bash
-# Set your badge address (find it using the scan command)
-export BADGE_ADDR="AA:BB:CC:DD:EE:FF"
-```
-
-### Available Commands
-
-#### Scan for devices
-```bash
-# Find nearby BLE devices (default 10 second timeout)
+# Scan for LED badges (filtered by service UUID and common name patterns)
 badge-controller scan
 
-# Custom timeout
+# Scan for all BLE devices (unfiltered)
+badge-controller scan --all
+
+# Custom timeout (default 10 seconds)
 badge-controller scan --timeout 20
 ```
 
-#### Send text to the badge
+### Send text
+
 ```bash
 # Basic text (scrolls left by default)
-# NOT WORKING
 badge-controller text $BADGE_ADDR "Hello World"
 
 # Static text (no scrolling)
-# scroll option works as expected. left right and static
 badge-controller text $BADGE_ADDR "Hi!" --scroll static
 
 # Scroll right
 badge-controller text $BADGE_ADDR "Welcome" --scroll right
 
 # With custom brightness (0-255)
-# brightness works as expected, but is not saved between badge power cycles.
 badge-controller text $BADGE_ADDR "Bright!" --brightness 255
 
-# With custom speed (0-255)
-#speed works as expected, but is not saved between badge power cycles.
+# With custom speed (0-255, higher = faster)
 badge-controller text $BADGE_ADDR "Fast scroll" --speed 100
 
 # Combine options
 badge-controller text $BADGE_ADDR "Custom" --scroll left --brightness 200 --speed 75
 ```
 
-#### Set brightness
+### Set brightness
+
 ```bash
-# Set brightness level (0-255)
-# works, but not saved between badge power cycles
 badge-controller brightness $BADGE_ADDR 128
 badge-controller brightness $BADGE_ADDR 255  # Maximum
 ```
 
-#### Set scroll/transition speed
+Note: Brightness is not saved between badge power cycles.
+
+### Set scroll speed
+
 ```bash
-# Set speed level (0-255)
-#works, but not saved between badge power cycles
 badge-controller speed $BADGE_ADDR 50
 badge-controller speed $BADGE_ADDR 100  # Faster
 ```
 
-#### Play animations
-```bash
-# Play animation by ID
-badge-controller animation $BADGE_ADDR 1
-badge-controller animation $BADGE_ADDR 2
-```
-No animation at index 0. Other animations are as follows
+Note: Speed is not saved between badge power cycles.
 
-1. Falling leaves turn into flashing word love.
+### Play animations
+
+```bash
+badge-controller animation $BADGE_ADDR 1
+```
+
+Available animations (1-8):
+1. Falling leaves turn into flashing word "love"
 2. Four animated hearts
 3. Cheers beer tankards
-4. The word COME builds with flashing face
+4. The word "COME" builds with flashing face
 5. Two radiating and flashing hearts
-6. Animated Dollar signs
+6. Animated dollar signs
 7. Two fish kissing
-8. Animal face appears and radiates thought waves. I really have no idea what it is supposed to be!
+8. Animal face with radiating thought waves
 
-Only eight animations
+### Show stored images
 
-#### Show stored images
 ```bash
-# Show image by ID
-# NEEDS TESTING
 badge-controller image $BADGE_ADDR 1
-badge-controller image $BADGE_ADDR 2
 ```
 
-#### Check stored images
+### Check stored images
+
 ```bash
-# Query what images are stored on the badge
 badge-controller check $BADGE_ADDR
 ```
 
-This gives a response like this
+## Interactive Mode
 
-```txt
-Checking stored images...
-Response: 0b535459504531325834384e00000000
-Decoded:
-          STYPE12X48N
-```
+Interactive mode keeps a persistent BLE connection open, allowing you to send multiple commands without reconnecting each time.
 
-#### Interactive mode
 ```bash
-# Start interactive session for experimentation
 badge-controller interactive $BADGE_ADDR
-
-# In interactive mode, use commands like:
-#   brightness 128
-#   animation 1
-#   speed 50
-#   image 1
-#   check
-#   quit
 ```
+
+### Available Commands
+
+| Command | Description |
+|---------|-------------|
+| `text <message>` | Send text to display |
+| `scroll <mode>` | Set scroll mode: static, left, right, up, down, snow |
+| `brightness <0-255>` | Set brightness level |
+| `speed <0-255>` | Set scroll speed |
+| `animation <id>` | Play animation (1-8) |
+| `image <id>` | Show stored image |
+| `check` | Check stored images |
+| `status` | Show current settings |
+| `quit` | Exit interactive mode |
+
+### Features
+
+- **Command chaining:** Separate multiple commands with `;`
+  ```
+  > scroll static; brightness 200; text Hello World
+  ```
+- **Command history:** Use up/down arrows to recall previous commands
+- **Settings persistence:** Scroll mode, brightness, and speed are remembered for subsequent text commands
+
+### Example Session
+
+```
+$ badge-controller interactive AA:BB:CC:DD:EE:FF
+Connected! Interactive mode.
+Commands:
+  text <message>      - Send text to display
+  scroll <mode>       - Set scroll mode (static, left, right, up, down, snow)
+  brightness <0-255>  - Set brightness
+  ...
+
+> brightness 200
+OK
+> scroll left
+OK - scroll mode: left
+> text Hello World
+OK - sent: Hello World
+> speed 100; text Fast scrolling!
+OK
+OK - sent: Fast scrolling!
+> status
+Scroll: left, Brightness: 200, Speed: 100
+> quit
+```
+
+## Python API
+
+The badge controller can be imported into other Python applications:
+
+```python
+from badge_controller import Badge, ScrollMode, TextRenderer, scan_for_badges
+
+# Scan for badges
+badges = await scan_for_badges()
+for badge in badges:
+    print(f"{badge.name}: {badge.address}")
+
+# Control a badge
+async with Badge("AA:BB:CC:DD:EE:FF") as badge:
+    await badge.set_brightness(128)
+    await badge.send_text("Hello", scroll_mode=ScrollMode.LEFT)
+    await badge.play_animation(1)
+
+# Extend the font with custom characters
+TextRenderer.FONT['©'] = [0x1c, 0x22, 0x49, 0x45, 0x49, 0x22, 0x1c, 0x00, 0x00]
+
+# Load custom font from JSON
+import json
+with open('my_font.json') as f:
+    TextRenderer.FONT.update(json.load(f))
+```
+
+### Available Exports
+
+- `Badge` - Main controller class
+- `scan_for_badges()` - Scan for nearby badges
+- `find_badge_by_name()` - Find badge by name pattern
+- `TextRenderer` - Text-to-bitmap rendering with font data
+- `ScrollMode` - Enum for scroll modes (STATIC, LEFT, RIGHT, UP, DOWN, SNOW)
+- `Animation` - Enum for animations
+- `Command` - Low-level command builders
+
+## Font Editor
+
+A web-based font editor is included for creating and editing character bitmaps.
+
+### Running the Editor
+
+Open `font-editor/index.html` in a web browser. No server required.
+
+### Features
+
+- **Visual pixel editor** - Click to toggle pixels on/off
+- **Character grid** - Quick selection of all characters in the font
+- **Add/delete characters** - Add new characters including emojis
+- **Multi-width characters** - Create wide characters spanning multiple segments (e.g., for emojis)
+- **Live preview** - See how text will appear on the badge
+- **JSON import/export** - Save and load font files
+
+### Multi-Width Characters
+
+Characters can span multiple standard widths (6 pixels each). This is useful for emojis or wide symbols:
+
+1. Enter a character and set the desired width
+2. Click "Add Character"
+3. The pixel grid expands to show multiple segments
+4. Design your character across all segments
+5. Save the JSON to persist your changes
+
+The font data format:
+- Single-width: `[b0, b1, ..., b8]` (9 bytes)
+- Multi-width: `[[b0...b8], [b0...b8], ...]` (array of 9-byte segments)
+
+### Screenshots
+
+![Font Editor - Character Grid and Pixel Editor](images/Screenshot%202026-01-21%20at%2019.08.21.png)
+*Character selection grid with multi-width emoji (3 segments), and the pixel editor showing the character design*
+
+![Font Editor - Preview and JSON](images/Screenshot%202026-01-21%20at%2019.08.43.png)
+*Live preview of text, orientation display, and JSON data editor for saving/loading fonts*
 
 ## Project Structure
 
 ```
 ble-led-badge/
-├── badge-1.py              # Main badge control script
-├── character_mapper.py     # Text-to-bitmap conversion
-├── ble_scan.py            # BLE device scanner
-├── list_characteristics.py # BLE diagnostic tool
-├── experiment.py          # Character mapper demo
-├── test_gfx_fonts.py      # Font testing suite
-├── pyproject.toml         # Project configuration
-├── Analysis.md            # Protocol documentation
-└── README.md             # This file
+├── badge_controller/        # Main Python package
+│   ├── __init__.py         # Package exports
+│   ├── badge.py            # Badge controller class
+│   ├── cli.py              # Command-line interface
+│   ├── commands.py         # Command packet builders
+│   ├── encryption.py       # AES-ECB encryption
+│   ├── protocol.py         # BLE UUIDs and constants
+│   └── text_renderer.py    # Text-to-bitmap conversion
+├── font-editor/            # Web-based font editor
+│   ├── index.html          # Font editor application
+│   └── font.json           # Font data file
+├── examples/               # Example scripts
+├── experiments/            # Experimental code
+├── initial_analysis/       # Reverse engineering notes
+├── images/                 # Screenshots and images
+├── pyproject.toml          # Poetry configuration
+└── README.md               # This file
 ```
 
 ## How It Works
 
-1. **Connection**: Uses Bleak to establish a BLE connection with the badge
-2. **Character Conversion**: Text is converted to 8x11 dot matrix bitmaps using `CharacterMapper`
-3. **Protocol**: Data is sent as hex-encoded byte arrays to the FEE1 characteristic UUID
-4. **Display**: The badge renders the bitmap data on its LED matrix
-
-## Notes
-
-- The badge characteristic UUID is: `d44bc439-abfd-45a2-b575-925416129600`
-- Default connection uses the FEE1 characteristic for write operations
-- The badge supports various display modes (scrolling speed, effects, etc.)
-- See [Analysis.md](Analysis.md) for protocol details and packet structures
+1. **Discovery**: Scans for BLE devices advertising the badge service UUID (`0000fee9-0000-1000-8000-00805f9b34fb`) or matching common name patterns
+2. **Connection**: Establishes BLE connection using Bleak
+3. **Text Rendering**: Converts text to bitmap using the font (9 bytes per character segment)
+4. **Encryption**: Commands are AES-ECB encrypted before sending
+5. **Communication**: Data sent via GATT characteristics:
+   - Command channel (encrypted): `d44bc439-abfd-45a2-b575-925416129600`
+   - Image upload (unencrypted): `d44bc439-abfd-45a2-b575-92541612960a`
+   - Notifications: `d44bc439-abfd-45a2-b575-925416129601`
 
 ## License
 

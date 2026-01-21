@@ -48,19 +48,6 @@ async def main():
     async with Badge(ADDRESS) as badge:
         print(f"Connected!")
 
-        # Test 0: Known working text first
-        # text0 = "Badger"
-        # print(f"\nTest 0: Sending known text: '{text0}'")
-        # success = await badge.send_text(
-        #     text0,
-        #     scroll_mode=ScrollMode.STATIC,
-        #     brightness=50,
-        #     speed=50
-        # )
-        # print(f"Result: {'OK' if success else 'FAILED'}")
-        # print(">>> Check badge - does 'Badger' display correctly? <<<")
-        # await asyncio.sleep(10)
-
         # send some known working text to clear the display
         print("\nClearing display with 'cleared' message...")
         success = await badge.send_text(

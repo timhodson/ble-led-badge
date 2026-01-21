@@ -1,7 +1,7 @@
-traces/
+traces
 LightBlue*
 *.pyc
-__pycache__/*
+__pycache__
 *.log
 .claude/*
 .vscode/*

@@ -3,11 +3,18 @@ Text rendering for LED badge displays.
 
 Converts text strings to bitmap data suitable for upload to the badge.
 Uses a 9-row font (8 pixels wide, 9 pixels tall per character).
+
+Supports multi-width characters where a single character can span multiple
+standard character widths (each segment is 9 bytes).
+
+Font data format:
+- Single-width: [b0, b1, ..., b8] (9 integers)
+- Multi-width: [[b0...b8], [b0...b8], ...] (array of 9-byte arrays)
 """
 
 import json
 from pathlib import Path
-from typing import List
+from typing import List, Union
 
 
 class TextRenderer:
@@ -100,7 +107,31 @@ class TextRenderer:
         "'": [0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00],
     }
 
-    ROWS_PER_CHAR = 9
+    BYTES_PER_SEGMENT = 9
+    ROWS_PER_CHAR = 9  # Legacy alias
+
+    @staticmethod
+    def is_multi_width(char_data: Union[List[int], List[List[int]]]) -> bool:
+        """Check if character data represents a multi-width character."""
+        return isinstance(char_data, list) and len(char_data) > 0 and isinstance(char_data[0], list)
+
+    @staticmethod
+    def get_char_width(char_data: Union[List[int], List[List[int]]]) -> int:
+        """Get the width (number of segments) of a character."""
+        if char_data is None:
+            return 1
+        if TextRenderer.is_multi_width(char_data):
+            return len(char_data)
+        return 1
+
+    @staticmethod
+    def get_segments(char_data: Union[List[int], List[List[int]]]) -> List[List[int]]:
+        """Get all segments of a character as a list of 9-byte arrays."""
+        if char_data is None:
+            return [[0] * 9]
+        if TextRenderer.is_multi_width(char_data):
+            return char_data
+        return [char_data]
 
     @classmethod
     def load_font_from_json(cls) -> bool:
@@ -145,8 +176,10 @@ class TextRenderer:
         """
         Render text to bitmap data for the badge display.
 
-        The badge display uses 9 bytes per character, where each byte represents
-        a vertical column of 8 pixels. Data is organized character-by-character.
+        The badge display uses 9 bytes per character segment, where each byte
+        represents a vertical column of 8 pixels. Data is organized
+        character-by-character, with multi-width characters sending multiple
+        9-byte segments in sequence.
 
         Args:
             text: Text string to render
@@ -158,12 +191,16 @@ class TextRenderer:
 
         # Process each character - data is character-by-character
         for char in text:
-            # Get character bitmap (9 columns per character)
-            char_bitmap = TextRenderer.FONT.get(char, TextRenderer.FONT.get(' ', [0] * 9))
+            # Get character bitmap
+            char_data = TextRenderer.FONT.get(char, TextRenderer.FONT.get(' ', [0] * 9))
 
-            # Add all 9 columns of this character (no bit reversal)
-            for col_byte in char_bitmap:
-                result.append(col_byte)
+            # Get all segments (handles both single and multi-width)
+            segments = TextRenderer.get_segments(char_data)
+
+            # Add all segments of this character
+            for segment in segments:
+                for col_byte in segment:
+                    result.append(col_byte)
 
         return bytes(result)
 
@@ -172,26 +209,38 @@ class TextRenderer:
         """
         Get the width in pixels of the rendered text.
 
+        Accounts for multi-width characters that span multiple standard widths.
+
         Args:
             text: Text to measure
 
         Returns:
-            Width in pixels (8 pixels per character)
+            Width in pixels (8 pixels per character segment)
         """
-        return len(text) * 8
+        total_segments = 0
+        for char in text:
+            char_data = TextRenderer.FONT.get(char, TextRenderer.FONT.get(' ', [0] * 9))
+            total_segments += TextRenderer.get_char_width(char_data)
+        return total_segments * 8
 
     @staticmethod
     def get_data_length(text: str) -> int:
         """
         Get the total byte length of rendered text.
 
+        Accounts for multi-width characters that use multiple 9-byte segments.
+
         Args:
             text: Text to measure
 
         Returns:
-            Total bytes (9 bytes per character)
+            Total bytes (9 bytes per character segment)
         """
-        return len(text) * TextRenderer.ROWS_PER_CHAR
+        total_segments = 0
+        for char in text:
+            char_data = TextRenderer.FONT.get(char, TextRenderer.FONT.get(' ', [0] * 9))
+            total_segments += TextRenderer.get_char_width(char_data)
+        return total_segments * TextRenderer.BYTES_PER_SEGMENT
 
 
 # Load font from JSON on module import (if available)

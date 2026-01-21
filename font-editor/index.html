@@ -57,18 +57,43 @@
             border-color: #5aa0e9;
             color: #fff;
         }
+        .char-btn.multi-width {
+            border-color: #d9a34a;
+            position: relative;
+        }
+        .char-btn.multi-width::after {
+            content: attr(data-width);
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            background: #d9a34a;
+            color: #000;
+            font-size: 9px;
+            font-weight: bold;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
         .editor-container {
             display: flex;
             align-items: flex-start;
             gap: 20px;
         }
         .pixel-grid {
-            display: grid;
-            grid-template-columns: repeat(6, 1fr);
+            display: flex;
+            flex-wrap: wrap;
             gap: 2px;
             background: #111;
             padding: 10px;
             border-radius: 8px;
+        }
+        .pixel-grid .pixel-row {
+            display: flex;
+            width: 100%;
+            gap: 2px;
         }
         .pixel {
             width: 36px;
@@ -157,8 +182,72 @@
         .btn-secondary:hover {
             background: #555;
         }
+        .btn-danger {
+            background: #d9534f;
+            color: #fff;
+        }
+        .btn-danger:hover {
+            background: #c9302c;
+        }
         input[type="file"] {
             display: none;
+        }
+        .add-char-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+        .add-char-input {
+            width: 50px;
+            padding: 8px 12px;
+            border: 1px solid #444;
+            border-radius: 4px;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            font-size: 16px;
+            text-align: center;
+        }
+        .add-char-input:focus {
+            outline: none;
+            border-color: #4a90d9;
+        }
+        .char-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .width-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #1a1a1a;
+            border-radius: 6px;
+        }
+        .width-control label {
+            color: #888;
+            font-size: 0.9em;
+        }
+        .width-control .width-value {
+            color: #4a90d9;
+            font-weight: bold;
+            min-width: 30px;
+            text-align: center;
+        }
+        .width-btn {
+            width: 28px;
+            height: 28px;
+            padding: 0;
+            font-size: 18px;
+            line-height: 1;
+        }
+        .segment-divider {
+            width: 2px;
+            height: 36px;
+            background: #4a90d9;
+            margin: 0 -1px;
         }
         .preview-section {
             display: flex;
@@ -252,16 +341,33 @@
 
     <div class="section">
         <div class="section-title">Characters</div>
+        <div class="add-char-row">
+            <input type="text" class="add-char-input" id="newCharInput" placeholder="?" style="width: 70px;">
+            <label style="color: #888; font-size: 0.9em;">Width:</label>
+            <input type="number" class="add-char-input" id="newCharWidth" min="1" max="10" value="1" style="width: 60px;">
+            <button class="btn-primary" onclick="addNewChar()">Add Character</button>
+        </div>
         <div class="char-grid" id="charGrid"></div>
     </div>
 
     <div class="section">
         <div class="selected-char">Selected: <span id="selectedChar">A</span></div>
+        <div class="width-control">
+            <label>Character Width:</label>
+            <button class="btn-secondary width-btn" onclick="decreaseWidth()">−</button>
+            <span class="width-value" id="widthValue">1</span>
+            <button class="btn-secondary width-btn" onclick="increaseWidth()">+</button>
+            <span style="color: #666; font-size: 0.8em; margin-left: 10px;">(<span id="byteCount">9</span> bytes)</span>
+        </div>
         <div class="editor-container">
             <div>
                 <div class="pixel-grid" id="pixelGrid"></div>
                 <div class="col-labels" id="colLabels"></div>
             </div>
+        </div>
+        <div class="char-actions">
+            <button class="btn-secondary" onclick="clearCurrentChar()">Clear Pixels</button>
+            <button class="btn-danger" onclick="deleteChar()">Delete Character</button>
         </div>
     </div>
 
@@ -327,7 +433,14 @@
 
             chars.forEach(char => {
                 const btn = document.createElement('button');
+                const charData = font[char];
+                const width = getCharWidth(charData);
+
                 btn.className = 'char-btn' + (char === selectedChar ? ' selected' : '');
+                if (width > 1) {
+                    btn.classList.add('multi-width');
+                    btn.setAttribute('data-width', width);
+                }
                 btn.textContent = char === ' ' ? '\u00A0' : char;
                 btn.onclick = () => selectChar(char);
                 grid.appendChild(btn);
@@ -359,13 +472,50 @@
         // Byte 7: col 4 rows 8-11 (bits 7-4) + col 5 rows 8-11 (bits 3-0)
         // Byte 8: col 5, rows 0-7
 
-        function getPixelFromBytes(data, col, row) {
+        // Multi-width support:
+        // Single-width: [b0, b1, ..., b8] (9 integers)
+        // Multi-width: [[b0...b8], [b0...b8], ...] (array of 9-byte arrays)
+
+        function isMultiWidth(data) {
+            return Array.isArray(data) && Array.isArray(data[0]);
+        }
+
+        function getCharWidth(data) {
+            if (!data) return 1;
+            return isMultiWidth(data) ? data.length : 1;
+        }
+
+        function getSegment(data, segmentIndex) {
+            if (isMultiWidth(data)) {
+                return data[segmentIndex] || [0, 0, 0, 0, 0, 0, 0, 0, 0];
+            }
+            return segmentIndex === 0 ? data : [0, 0, 0, 0, 0, 0, 0, 0, 0];
+        }
+
+        function createEmptySegment() {
+            return [0, 0, 0, 0, 0, 0, 0, 0, 0];
+        }
+
+        function normalizeToMultiWidth(data) {
+            if (isMultiWidth(data)) return data;
+            return [data || createEmptySegment()];
+        }
+
+        function normalizeFromMultiWidth(data) {
+            // If single segment, convert back to flat array for backwards compatibility
+            if (isMultiWidth(data) && data.length === 1) {
+                return data[0];
+            }
+            return data;
+        }
+
+        function getPixelFromSegment(segment, col, row) {
             if (row < 8) {
                 // Rows 0-7: use bytes 0, 2, 3, 5, 6, 8 for cols 0-5
                 const byteMap = [0, 2, 3, 5, 6, 8];
                 const byteIdx = byteMap[col];
                 const bit = 7 - row;
-                return (data[byteIdx] >> bit) & 1;
+                return (segment[byteIdx] >> bit) & 1;
             } else {
                 // Rows 8-11: use bytes 1, 4, 7 (nibble-packed)
                 const nibbleByteMap = [1, 1, 4, 4, 7, 7];
@@ -373,19 +523,19 @@
                 const isUpperNibble = (col % 2 === 0);
                 const rowInNibble = row - 8;
                 const bit = isUpperNibble ? (7 - rowInNibble) : (3 - rowInNibble);
-                return (data[byteIdx] >> bit) & 1;
+                return (segment[byteIdx] >> bit) & 1;
             }
         }
 
-        function setPixelInBytes(data, col, row, value) {
+        function setPixelInSegment(segment, col, row, value) {
             if (row < 8) {
                 const byteMap = [0, 2, 3, 5, 6, 8];
                 const byteIdx = byteMap[col];
                 const bit = 7 - row;
                 if (value) {
-                    data[byteIdx] |= (1 << bit);
+                    segment[byteIdx] |= (1 << bit);
                 } else {
-                    data[byteIdx] &= ~(1 << bit);
+                    segment[byteIdx] &= ~(1 << bit);
                 }
             } else {
                 const nibbleByteMap = [1, 1, 4, 4, 7, 7];
@@ -394,11 +544,20 @@
                 const rowInNibble = row - 8;
                 const bit = isUpperNibble ? (7 - rowInNibble) : (3 - rowInNibble);
                 if (value) {
-                    data[byteIdx] |= (1 << bit);
+                    segment[byteIdx] |= (1 << bit);
                 } else {
-                    data[byteIdx] &= ~(1 << bit);
+                    segment[byteIdx] &= ~(1 << bit);
                 }
             }
+        }
+
+        // Legacy wrappers for backwards compatibility with single-segment operations
+        function getPixelFromBytes(data, col, row) {
+            return getPixelFromSegment(data, col, row);
+        }
+
+        function setPixelInBytes(data, col, row, value) {
+            setPixelInSegment(data, col, row, value);
         }
 
         function renderPixelGrid() {
@@ -406,41 +565,94 @@
             grid.innerHTML = '';
 
             const charData = font[selectedChar] || [0, 0, 0, 0, 0, 0, 0, 0, 0];
+            const width = getCharWidth(charData);
+            const totalCols = width * 6;
 
-            // 6 columns x 12 rows
+            // Update width display
+            document.getElementById('widthValue').textContent = width;
+            document.getElementById('byteCount').textContent = width * 9;
+
+            // Update grid width dynamically
+            grid.style.width = (totalCols * 38 + (totalCols - 1) * 2 + (width - 1) * 4) + 'px';
+
+            // 12 rows x (6 * width) columns
             for (let row = 0; row < 12; row++) {
-                for (let col = 0; col < 6; col++) {
-                    const pixel = document.createElement('div');
-                    pixel.className = 'pixel';
+                const rowDiv = document.createElement('div');
+                rowDiv.className = 'pixel-row';
 
-                    const isOn = getPixelFromBytes(charData, col, row);
-                    if (isOn) pixel.classList.add('on');
+                for (let segment = 0; segment < width; segment++) {
+                    // Add segment divider (except before first segment)
+                    if (segment > 0) {
+                        const divider = document.createElement('div');
+                        divider.className = 'segment-divider';
+                        rowDiv.appendChild(divider);
+                    }
 
-                    pixel.onclick = () => togglePixel(col, row);
-                    grid.appendChild(pixel);
+                    const segmentData = getSegment(charData, segment);
+
+                    for (let col = 0; col < 6; col++) {
+                        const pixel = document.createElement('div');
+                        pixel.className = 'pixel';
+
+                        const isOn = getPixelFromSegment(segmentData, col, row);
+                        if (isOn) pixel.classList.add('on');
+
+                        // Closure to capture segment, col, row
+                        ((s, c, r) => {
+                            pixel.onclick = () => togglePixel(s, c, r);
+                        })(segment, col, row);
+
+                        rowDiv.appendChild(pixel);
+                    }
                 }
+
+                grid.appendChild(rowDiv);
             }
 
             // Render column labels
             const colLabels = document.getElementById('colLabels');
             colLabels.innerHTML = '';
-            for (let col = 0; col < 6; col++) {
-                const label = document.createElement('div');
-                label.className = 'label';
-                label.textContent = col;
-                colLabels.appendChild(label);
+            colLabels.style.width = grid.style.width;
+            colLabels.style.display = 'flex';
+            colLabels.style.gap = '2px';
+
+            for (let segment = 0; segment < width; segment++) {
+                if (segment > 0) {
+                    const spacer = document.createElement('div');
+                    spacer.style.width = '2px';
+                    colLabels.appendChild(spacer);
+                }
+                for (let col = 0; col < 6; col++) {
+                    const label = document.createElement('div');
+                    label.className = 'label';
+                    label.textContent = segment * 6 + col;
+                    colLabels.appendChild(label);
+                }
             }
 
             updateJsonOutput();
         }
 
-        function togglePixel(col, row) {
+        function togglePixel(segment, col, row) {
             if (!font[selectedChar]) {
                 font[selectedChar] = [0, 0, 0, 0, 0, 0, 0, 0, 0];
             }
 
-            const currentValue = getPixelFromBytes(font[selectedChar], col, row);
-            setPixelInBytes(font[selectedChar], col, row, currentValue ? 0 : 1);
+            const charData = font[selectedChar];
+            const width = getCharWidth(charData);
+
+            if (width === 1 && segment === 0) {
+                // Single-width character - use flat array
+                const currentValue = getPixelFromSegment(charData, col, row);
+                setPixelInSegment(charData, col, row, currentValue ? 0 : 1);
+            } else {
+                // Multi-width character - use nested arrays
+                const multiData = normalizeToMultiWidth(charData);
+                const segmentData = multiData[segment];
+                const currentValue = getPixelFromSegment(segmentData, col, row);
+                setPixelInSegment(segmentData, col, row, currentValue ? 0 : 1);
+                font[selectedChar] = multiData;
+            }
 
             renderPixelGrid();
             renderOrientations();
@@ -494,6 +706,18 @@
             }
         }
 
+        // Get all grapheme clusters (visual characters) from a string
+        function getGraphemes(str) {
+            if (!str) return [];
+            // Use Intl.Segmenter if available (modern browsers)
+            if (typeof Intl !== 'undefined' && Intl.Segmenter) {
+                const segmenter = new Intl.Segmenter('en', { granularity: 'grapheme' });
+                return Array.from(segmenter.segment(str), s => s.segment);
+            }
+            // Fallback: use spread operator (works for most emojis)
+            return [...str];
+        }
+
         function updatePreview() {
             const canvas = document.getElementById('previewCanvas');
             const ctx = canvas.getContext('2d');
@@ -503,32 +727,43 @@
             ctx.fillStyle = '#111';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Draw each character (6 cols x 12 rows)
+            // Draw each character (6 cols x 12 rows per segment)
             const pixelSize = 3;
-            const charWidth = 6 * pixelSize;
+            const segmentWidth = 6 * pixelSize;
             const charHeight = 12 * pixelSize;
             const yOffset = (canvas.height - charHeight) / 2;
 
             ctx.fillStyle = '#ff4444';
 
-            for (let i = 0; i < text.length; i++) {
-                const char = text[i];
-                const charData = font[char] || font[' '] || [0, 0, 0, 0, 0, 0, 0, 0, 0];
-                const xStart = i * charWidth;
+            // Use grapheme segmentation to properly handle emojis
+            const chars = getGraphemes(text);
 
-                // Draw 6x12 using correct byte layout
-                for (let col = 0; col < 6; col++) {
-                    for (let row = 0; row < 12; row++) {
-                        if (getPixelFromBytes(charData, col, row)) {
-                            ctx.fillRect(
-                                xStart + col * pixelSize,
-                                yOffset + row * pixelSize,
-                                pixelSize - 1,
-                                pixelSize - 1
-                            );
+            let xPos = 0;
+            for (const char of chars) {
+                const charData = font[char] || font[' '] || [0, 0, 0, 0, 0, 0, 0, 0, 0];
+                const width = getCharWidth(charData);
+
+                // Draw all segments of this character
+                for (let segment = 0; segment < width; segment++) {
+                    const segmentData = getSegment(charData, segment);
+                    const xStart = xPos + segment * segmentWidth;
+
+                    // Draw 6x12 using correct byte layout
+                    for (let col = 0; col < 6; col++) {
+                        for (let row = 0; row < 12; row++) {
+                            if (getPixelFromSegment(segmentData, col, row)) {
+                                ctx.fillRect(
+                                    xStart + col * pixelSize,
+                                    yOffset + row * pixelSize,
+                                    pixelSize - 1,
+                                    pixelSize - 1
+                                );
+                            }
                         }
                     }
                 }
+
+                xPos += width * segmentWidth;
             }
         }
 
@@ -537,22 +772,29 @@
             container.innerHTML = '';
 
             const charData = font[selectedChar] || [0, 0, 0, 0, 0, 0, 0, 0, 0];
+            const width = getCharWidth(charData);
+            const totalCols = width * 6;
 
-            // Show the correct 6x12 interpretation with the discovered byte layout
+            // Show the correct display with all segments
             const correctBox = document.createElement('div');
             correctBox.className = 'orientation-box matched';
-            correctBox.innerHTML = `<div class="orientation-title"><strong>✓ Badge Display (6×12)</strong><br><code>Interleaved nibble layout</code></div>`;
+            correctBox.innerHTML = `<div class="orientation-title"><strong>✓ Badge Display (${totalCols}×12)</strong><br><code>${width > 1 ? `${width} segments` : 'Single width'}</code></div>`;
 
             const correctGrid = document.createElement('div');
-            correctGrid.className = 'mini-grid six-col';
+            correctGrid.className = 'mini-grid';
+            correctGrid.style.gridTemplateColumns = `repeat(${totalCols}, 1fr)`;
+
             for (let row = 0; row < 12; row++) {
-                for (let col = 0; col < 6; col++) {
-                    const pixel = document.createElement('div');
-                    pixel.className = 'mini-pixel';
-                    if (getPixelFromBytes(charData, col, row)) {
-                        pixel.classList.add('on');
+                for (let segment = 0; segment < width; segment++) {
+                    const segmentData = getSegment(charData, segment);
+                    for (let col = 0; col < 6; col++) {
+                        const pixel = document.createElement('div');
+                        pixel.className = 'mini-pixel';
+                        if (getPixelFromSegment(segmentData, col, row)) {
+                            pixel.classList.add('on');
+                        }
+                        correctGrid.appendChild(pixel);
                     }
-                    correctGrid.appendChild(pixel);
                 }
             }
             correctBox.appendChild(correctGrid);
@@ -561,9 +803,14 @@
             // Show byte layout info
             const infoBox = document.createElement('div');
             infoBox.className = 'orientation-box';
-            infoBox.innerHTML = `
-                <div class="orientation-title"><strong>Byte Layout</strong></div>
-                <div style="font-size: 10px; color: #888; line-height: 1.4;">
+            let layoutHtml = `<div class="orientation-title"><strong>Byte Layout</strong></div>
+                <div style="font-size: 10px; color: #888; line-height: 1.4;">`;
+
+            if (width > 1) {
+                layoutHtml += `<div style="color: #4a90d9; margin-bottom: 4px;">Multi-width: ${width} × 9 bytes = ${width * 9} bytes</div>`;
+            }
+
+            layoutHtml += `
                     <div>B0: col0 r0-7</div>
                     <div>B1: col0 r8-11 | col1 r8-11</div>
                     <div>B2: col1 r0-7</div>
@@ -573,13 +820,195 @@
                     <div>B6: col4 r0-7</div>
                     <div>B7: col4 r8-11 | col5 r8-11</div>
                     <div>B8: col5 r0-7</div>
-                </div>
-            `;
+                </div>`;
+            infoBox.innerHTML = layoutHtml;
             container.appendChild(infoBox);
+        }
+
+        // Extract first grapheme cluster (visual character) from string
+        // This handles emojis that are multiple code points
+        function getFirstGrapheme(str) {
+            if (!str) return '';
+            // Use Intl.Segmenter if available (modern browsers)
+            if (typeof Intl !== 'undefined' && Intl.Segmenter) {
+                const segmenter = new Intl.Segmenter('en', { granularity: 'grapheme' });
+                const segments = segmenter.segment(str);
+                for (const segment of segments) {
+                    return segment.segment;
+                }
+                return '';
+            }
+            // Fallback: use spread operator (works for most emojis)
+            return [...str][0] || '';
+        }
+
+        function addNewChar() {
+            const input = document.getElementById('newCharInput');
+            const widthInput = document.getElementById('newCharWidth');
+            const char = getFirstGrapheme(input.value.trim());
+            const width = parseInt(widthInput.value) || 1;
+
+            if (!char) {
+                alert('Please enter a character to add.');
+                return;
+            }
+
+            if (width < 1 || width > 10) {
+                alert('Width must be between 1 and 10.');
+                return;
+            }
+
+            if (font[char]) {
+                alert(`Character "${char}" already exists! Select it from the grid to edit.`);
+                input.value = '';
+                selectChar(char);
+                return;
+            }
+
+            // Add new character with blank data
+            if (width === 1) {
+                // Single-width: flat array
+                font[char] = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+            } else {
+                // Multi-width: array of segments
+                font[char] = Array(width).fill(null).map(() => createEmptySegment());
+            }
+
+            // Clear input
+            input.value = '';
+            widthInput.value = '1';
+
+            // Refresh the character grid and select the new character
+            renderCharGrid();
+            selectChar(char);
+            updatePreview();
+
+            const widthMsg = width > 1 ? ` with width ${width}` : '';
+            alert(`Character "${char}" added${widthMsg}! Click pixels to design it.`);
+        }
+
+        function deleteChar() {
+            if (!font[selectedChar]) {
+                alert('No character selected to delete.');
+                return;
+            }
+
+            const charDisplay = selectedChar === ' ' ? '(space)' : selectedChar;
+            const confirmed = confirm(`Are you sure you want to delete the character "${charDisplay}"?\n\nThis action cannot be undone!`);
+
+            if (!confirmed) {
+                return;
+            }
+
+            // Delete the character
+            delete font[selectedChar];
+
+            // Select a different character (first available, or show empty state)
+            const remainingChars = Object.keys(font);
+            if (remainingChars.length > 0) {
+                // Sort and select first character
+                remainingChars.sort((a, b) => {
+                    const order = (c) => {
+                        if (c >= 'A' && c <= 'Z') return 0;
+                        if (c >= 'a' && c <= 'z') return 1;
+                        if (c >= '0' && c <= '9') return 2;
+                        return 3;
+                    };
+                    const diff = order(a) - order(b);
+                    if (diff !== 0) return diff;
+                    return a.localeCompare(b);
+                });
+                selectedChar = remainingChars[0];
+            }
+
+            renderCharGrid();
+            selectChar(selectedChar);
+            updatePreview();
+        }
+
+        function clearCurrentChar() {
+            if (!font[selectedChar]) {
+                return;
+            }
+
+            const charData = font[selectedChar];
+            const width = getCharWidth(charData);
+
+            if (width === 1) {
+                // Single-width: reset to zeros
+                font[selectedChar] = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+            } else {
+                // Multi-width: reset all segments to zeros
+                font[selectedChar] = Array(width).fill(null).map(() => createEmptySegment());
+            }
+
+            renderPixelGrid();
+            renderOrientations();
+            updatePreview();
+        }
+
+        function increaseWidth() {
+            if (!font[selectedChar]) {
+                font[selectedChar] = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+            }
+
+            const charData = font[selectedChar];
+            const multiData = normalizeToMultiWidth(charData);
+
+            // Add a new empty segment
+            multiData.push(createEmptySegment());
+
+            font[selectedChar] = multiData;
+
+            renderPixelGrid();
+            renderOrientations();
+            updatePreview();
+        }
+
+        function decreaseWidth() {
+            if (!font[selectedChar]) {
+                return;
+            }
+
+            const charData = font[selectedChar];
+            const width = getCharWidth(charData);
+
+            if (width <= 1) {
+                alert('Cannot reduce width below 1.');
+                return;
+            }
+
+            const multiData = normalizeToMultiWidth(charData);
+
+            // Check if last segment has any pixels
+            const lastSegment = multiData[multiData.length - 1];
+            const hasPixels = lastSegment.some(b => b !== 0);
+
+            if (hasPixels) {
+                const confirmed = confirm('The last segment has pixels. Are you sure you want to remove it?');
+                if (!confirmed) return;
+            }
+
+            // Remove last segment
+            multiData.pop();
+
+            // Normalize back (if single segment, convert to flat array)
+            font[selectedChar] = normalizeFromMultiWidth(multiData);
+
+            renderPixelGrid();
+            renderOrientations();
+            updatePreview();
         }
 
         // Event listeners
         document.getElementById('previewInput').addEventListener('input', updatePreview);
+
+        // Allow Enter key to add character
+        document.getElementById('newCharInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                addNewChar();
+            }
+        });
 
         // Start
         init();

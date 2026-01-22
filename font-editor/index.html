@@ -3,24 +3,97 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Font Editor</title>
+    <title>Badge Editor</title>
     <style>
         * {
             box-sizing: border-box;
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
+            margin: 0;
             padding: 20px;
             background: #1a1a1a;
             color: #e0e0e0;
+        }
+        .app-container {
+            display: flex;
+            gap: 20px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        .left-sidebar {
+            width: 280px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .main-content {
+            flex: 1;
+            min-width: 0;
+            overflow-x: auto;
+        }
+        .right-sidebar {
+            width: 320px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .sidebar-section {
+            background: #2a2a2a;
+            border-radius: 8px;
+            padding: 12px;
+        }
+        .sidebar-section .section-title {
+            margin-bottom: 8px;
+        }
+        .tab-sidebar-content {
+            display: none;
+        }
+        .tab-sidebar-content.active {
+            display: block;
         }
         h1 {
             margin: 0 0 20px 0;
             font-size: 1.5em;
             color: #fff;
         }
+
+        /* Tab styles */
+        .tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #333;
+            padding-bottom: 0;
+        }
+        .tab {
+            padding: 12px 24px;
+            background: #2a2a2a;
+            border: none;
+            border-radius: 8px 8px 0 0;
+            color: #888;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .tab:hover {
+            background: #333;
+            color: #aaa;
+        }
+        .tab.active {
+            background: #4a90d9;
+            color: #fff;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+
         .section {
             margin-bottom: 20px;
             padding: 15px;
@@ -35,7 +108,14 @@
         .char-grid {
             display: flex;
             flex-wrap: wrap;
-            gap: 4px;
+            gap: 3px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .char-grid .char-btn {
+            width: 28px;
+            height: 28px;
+            font-size: 12px;
         }
         .char-btn {
             width: 32px;
@@ -112,6 +192,14 @@
             border-color: #ff6666;
             box-shadow: 0 0 8px rgba(255, 68, 68, 0.5);
         }
+        .pixel.small {
+            width: 14px;
+            height: 14px;
+            border-radius: 1px;
+        }
+        .pixel.small.on {
+            box-shadow: none;
+        }
         .labels {
             display: flex;
             flex-direction: column;
@@ -131,6 +219,10 @@
             font-size: 11px;
             color: #666;
         }
+        .label.small {
+            width: 14px;
+            font-size: 8px;
+        }
         .selected-char {
             font-size: 1.2em;
             margin-bottom: 10px;
@@ -143,13 +235,14 @@
             width: 100%;
             height: 120px;
             font-family: 'SF Mono', Monaco, 'Courier New', monospace;
-            font-size: 12px;
+            font-size: 11px;
             background: #1a1a1a;
             color: #e0e0e0;
             border: 1px solid #444;
             border-radius: 4px;
-            padding: 10px;
+            padding: 8px;
             resize: vertical;
+            box-sizing: border-box;
         }
         textarea:focus {
             outline: none;
@@ -157,8 +250,13 @@
         }
         .button-row {
             display: flex;
-            gap: 10px;
+            gap: 8px;
             margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        .button-row button {
+            flex: 1;
+            min-width: 80px;
         }
         button {
             padding: 8px 16px;
@@ -188,6 +286,10 @@
         }
         .btn-danger:hover {
             background: #c9302c;
+        }
+        .btn-small {
+            padding: 4px 10px;
+            font-size: 12px;
         }
         input[type="file"] {
             display: none;
@@ -248,6 +350,9 @@
             height: 36px;
             background: #4a90d9;
             margin: 0 -1px;
+        }
+        .segment-divider.small {
+            height: 14px;
         }
         .preview-section {
             display: flex;
@@ -334,72 +439,458 @@
             background: #444;
             color: #fff;
         }
+
+        /* Image editor specific styles */
+        .image-grid-container {
+            overflow-x: auto;
+            padding-bottom: 10px;
+        }
+        .image-pixel-grid {
+            display: grid;
+            grid-template-columns: repeat(48, 14px);
+            gap: 1px;
+            background: #111;
+            padding: 8px;
+            border-radius: 8px;
+            width: fit-content;
+        }
+        .image-preview {
+            display: grid;
+            grid-template-columns: repeat(48, 6px);
+            gap: 0;
+            background: #000;
+            padding: 4px;
+            border-radius: 4px;
+            width: fit-content;
+            margin-top: 10px;
+        }
+        .image-preview .mini-pixel {
+            width: 6px;
+            height: 6px;
+        }
+        .preset-grid {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .preset-btn {
+            padding: 6px 10px;
+            background: #333;
+            border: 1px solid #444;
+            color: #e0e0e0;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+        .preset-btn:hover {
+            background: #444;
+            border-color: #666;
+        }
+        .code-output {
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+            font-size: 10px;
+            height: 200px;
+        }
+        .image-info {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #1a1a1a;
+            border-radius: 6px;
+            font-size: 0.9em;
+            color: #888;
+        }
+        .image-info span {
+            color: #4a90d9;
+        }
+
+        /* Bluetooth/Badge Control styles */
+        .badge-control-panel {
+            background: linear-gradient(135deg, #1e3a5f 0%, #2a2a4a 100%);
+            border: 1px solid #3a5a8a;
+            margin-bottom: 20px;
+        }
+        .connection-row {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 10px;
+        }
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: #1a1a2a;
+            border-radius: 20px;
+            font-size: 13px;
+        }
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #666;
+            transition: background 0.3s;
+        }
+        .status-dot.connected {
+            background: #4caf50;
+            box-shadow: 0 0 8px rgba(76, 175, 80, 0.6);
+        }
+        .status-dot.connecting {
+            background: #ff9800;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .btn-connect {
+            background: linear-gradient(135deg, #4a90d9 0%, #357abd 100%);
+            color: #fff;
+            font-weight: 500;
+        }
+        .btn-connect:hover {
+            background: linear-gradient(135deg, #5aa0e9 0%, #4a90d9 100%);
+        }
+        .btn-connect.connected {
+            background: linear-gradient(135deg, #d9534f 0%, #c9302c 100%);
+        }
+        .btn-connect:disabled {
+            background: #444;
+            cursor: not-allowed;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .control-group label {
+            font-size: 11px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .control-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .control-row input[type="range"] {
+            width: 120px;
+            accent-color: #4a90d9;
+        }
+        .control-value {
+            min-width: 35px;
+            text-align: right;
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 12px;
+            color: #4a90d9;
+        }
+        .scroll-mode-select {
+            padding: 6px 10px;
+            background: #1a1a2a;
+            border: 1px solid #444;
+            border-radius: 4px;
+            color: #e0e0e0;
+            font-size: 12px;
+            cursor: pointer;
+            width: 100%;
+        }
+        .scroll-mode-select:focus {
+            outline: none;
+            border-color: #4a90d9;
+        }
+        .controls-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 12px;
+        }
+        .control-row input[type="range"] {
+            flex: 1;
+        }
+        .quick-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+        .quick-actions .btn-small {
+            flex: 1;
+            min-width: 70px;
+        }
+        .btn-send {
+            background: linear-gradient(135deg, #5cb85c 0%, #449d44 100%);
+            color: #fff;
+            font-weight: 500;
+        }
+        .btn-send:hover:not(:disabled) {
+            background: linear-gradient(135deg, #6cc86c 0%, #5cb85c 100%);
+        }
+        .btn-send:disabled {
+            background: #444;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        .device-info {
+            font-size: 11px;
+            color: #888;
+            text-align: center;
+            padding: 6px;
+            background: #1a1a2a;
+            border-radius: 4px;
+        }
+        .device-info span {
+            color: #4a90d9;
+        }
+        .log-output {
+            max-height: 100px;
+            overflow-y: auto;
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 11px;
+            background: #0a0a15;
+            border: 1px solid #333;
+            border-radius: 4px;
+            padding: 8px;
+            margin-top: 10px;
+            color: #888;
+        }
+        .log-output .log-success { color: #4caf50; }
+        .log-output .log-error { color: #f44336; }
+        .log-output .log-info { color: #4a90d9; }
     </style>
 </head>
 <body>
-    <h1>Font Editor</h1>
+    <h1 style="max-width: 1600px; margin: 0 auto 20px auto;">Badge Editor</h1>
 
-    <div class="section">
-        <div class="section-title">Characters</div>
-        <div class="add-char-row">
-            <input type="text" class="add-char-input" id="newCharInput" placeholder="?" style="width: 70px;">
-            <label style="color: #888; font-size: 0.9em;">Width:</label>
-            <input type="number" class="add-char-input" id="newCharWidth" min="1" max="10" value="1" style="width: 60px;">
-            <button class="btn-primary" onclick="addNewChar()">Add Character</button>
-        </div>
-        <div class="char-grid" id="charGrid"></div>
-    </div>
+    <div class="app-container">
+        <!-- Left Sidebar -->
+        <div class="left-sidebar">
+            <!-- Badge Control Panel -->
+            <div class="sidebar-section badge-control-panel">
+                <div class="section-title">Badge Connection</div>
+                <div class="connection-row">
+                    <button id="connectBtn" class="btn-primary btn-connect" onclick="toggleConnection()" style="width: 100%;">
+                        Connect Badge
+                    </button>
+                    <div class="status-indicator" style="justify-content: center;">
+                        <div id="statusDot" class="status-dot"></div>
+                        <span id="statusText">Disconnected</span>
+                    </div>
+                    <div class="device-info" id="deviceInfo" style="display: none;">
+                        Device: <span id="deviceName">-</span>
+                    </div>
+                </div>
+                <div class="controls-grid">
+                    <div class="control-group">
+                        <label>Brightness</label>
+                        <div class="control-row">
+                            <input type="range" id="brightnessSlider" min="0" max="255" value="200" oninput="updateBrightness()">
+                            <span class="control-value" id="brightnessValue">200</span>
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <label>Speed</label>
+                        <div class="control-row">
+                            <input type="range" id="speedSlider" min="0" max="255" value="50" oninput="updateSpeed()">
+                            <span class="control-value" id="speedValue">50</span>
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <label>Scroll Mode</label>
+                        <div class="control-row">
+                            <select id="scrollModeSelect" class="scroll-mode-select" style="width: 100%;" onchange="updateScrollMode()">
+                                <option value="1">Static</option>
+                                <option value="3" selected>Scroll Left</option>
+                                <option value="4">Scroll Right</option>
+                                <option value="5">Scroll Up</option>
+                                <option value="6">Scroll Down</option>
+                                <option value="7">Snow Effect</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="quick-actions">
+                    <button class="btn-secondary btn-small" onclick="sendCommand('LEDON')" id="btnLedOn" disabled>LED On</button>
+                    <button class="btn-secondary btn-small" onclick="sendCommand('LEDOFF')" id="btnLedOff" disabled>LED Off</button>
+                </div>
+                <div id="logOutput" class="log-output" style="display: none;"></div>
+            </div>
 
-    <div class="section">
-        <div class="selected-char">Selected: <span id="selectedChar">A</span></div>
-        <div class="width-control">
-            <label>Character Width:</label>
-            <button class="btn-secondary width-btn" onclick="decreaseWidth()">−</button>
-            <span class="width-value" id="widthValue">1</span>
-            <button class="btn-secondary width-btn" onclick="increaseWidth()">+</button>
-            <span style="color: #666; font-size: 0.8em; margin-left: 10px;">(<span id="byteCount">9</span> bytes)</span>
-        </div>
-        <div class="editor-container">
-            <div>
-                <div class="pixel-grid" id="pixelGrid"></div>
-                <div class="col-labels" id="colLabels"></div>
+            <!-- Font Tab: Character Selector -->
+            <div id="fontLeftSidebar" class="tab-sidebar-content active">
+                <div class="sidebar-section">
+                    <div class="section-title">Characters</div>
+                    <div class="add-char-row" style="flex-wrap: wrap; gap: 6px;">
+                        <input type="text" class="add-char-input" id="newCharInput" placeholder="?" style="width: 45px;">
+                        <input type="number" class="add-char-input" id="newCharWidth" min="1" max="10" value="1" style="width: 45px;" title="Width">
+                        <button class="btn-primary btn-small" onclick="addNewChar()">Add</button>
+                    </div>
+                    <div class="char-grid" id="charGrid"></div>
+                </div>
+            </div>
+
+            <!-- Image Tab: Presets -->
+            <div id="imageLeftSidebar" class="tab-sidebar-content">
+                <div class="sidebar-section">
+                    <div class="section-title">Presets</div>
+                    <div class="preset-grid">
+                        <button class="preset-btn" onclick="loadPreset('blank')">Blank</button>
+                        <button class="preset-btn" onclick="loadPreset('sunglasses')">Sunglasses</button>
+                        <button class="preset-btn" onclick="loadPreset('heart')">Heart</button>
+                        <button class="preset-btn" onclick="loadPreset('smiley')">Smiley</button>
+                        <button class="preset-btn" onclick="loadPreset('arrow')">Arrow</button>
+                        <button class="preset-btn" onclick="loadPreset('checkerboard')">Checker</button>
+                    </div>
+                </div>
+                <div class="sidebar-section">
+                    <div class="section-title">Image Size</div>
+                    <div class="image-info" style="flex-direction: column; gap: 4px;">
+                        <div>Size: <span id="imageSizeDisplay">48 × 12</span> px</div>
+                        <div>Segments: <span id="imageSegmentsDisplay">8</span></div>
+                        <div>Bytes: <span id="imageBytesDisplay">72</span></div>
+                    </div>
+                    <div class="width-control" style="margin-top: 10px; flex-wrap: wrap;">
+                        <label style="width: 100%; margin-bottom: 6px;">Width (segments):</label>
+                        <button class="btn-secondary width-btn" onclick="decreaseImageWidth()">−</button>
+                        <span class="width-value" id="imageWidthValue">8</span>
+                        <button class="btn-secondary width-btn" onclick="increaseImageWidth()">+</button>
+                        <span style="color: #666; font-size: 0.8em;">(<span id="imagePixelWidth">48</span>px)</span>
+                    </div>
+                </div>
             </div>
         </div>
-        <div class="char-actions">
-            <button class="btn-secondary" onclick="clearCurrentChar()">Clear Pixels</button>
-            <button class="btn-danger" onclick="deleteChar()">Delete Character</button>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('font')">Font Editor</button>
+                <button class="tab" onclick="switchTab('image')">Image Editor</button>
+            </div>
+
+            <!-- Font Editor Tab -->
+            <div id="fontTab" class="tab-content active">
+                <div class="section">
+                    <div class="selected-char">Selected: <span id="selectedChar">A</span></div>
+                    <div class="width-control">
+                        <label>Character Width:</label>
+                        <button class="btn-secondary width-btn" onclick="decreaseWidth()">−</button>
+                        <span class="width-value" id="widthValue">1</span>
+                        <button class="btn-secondary width-btn" onclick="increaseWidth()">+</button>
+                        <span style="color: #666; font-size: 0.8em; margin-left: 10px;">(<span id="byteCount">9</span> bytes)</span>
+                    </div>
+                    <div class="editor-container">
+                        <div>
+                            <div class="pixel-grid" id="pixelGrid"></div>
+                            <div class="col-labels" id="colLabels"></div>
+                        </div>
+                    </div>
+                    <div class="char-actions">
+                        <button class="btn-secondary" onclick="clearCurrentChar()">Clear Pixels</button>
+                        <button class="btn-danger" onclick="deleteChar()">Delete Character</button>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">All Possible Orientations (find the one matching your badge)</div>
+                    <div class="orientations-grid" id="orientationsGrid"></div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">Preview</div>
+                    <div class="preview-section">
+                        <input type="text" class="preview-input" id="previewInput" value="Hello World" placeholder="Type text to preview...">
+                    </div>
+                    <canvas class="preview-canvas" id="previewCanvas" width="600" height="50"></canvas>
+                </div>
+            </div>
+
+            <!-- Image Editor Tab -->
+            <div id="imageTab" class="tab-content">
+                <div class="section">
+                    <div class="section-title">Image Editor</div>
+                    <div class="image-grid-container">
+                        <div class="image-pixel-grid" id="imagePixelGrid"></div>
+                    </div>
+                    <div class="button-row">
+                        <button class="btn-secondary" onclick="clearImage()">Clear All</button>
+                        <button class="btn-secondary" onclick="invertImage()">Invert</button>
+                        <button class="btn-secondary" onclick="shiftImageLeft()">Shift Left</button>
+                        <button class="btn-secondary" onclick="shiftImageRight()">Shift Right</button>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">Preview</div>
+                    <div class="image-preview" id="imagePreview"></div>
+                </div>
+            </div>
         </div>
-    </div>
 
-    <div class="section">
-        <div class="section-title">All Possible Orientations (find the one matching your badge)</div>
-        <div class="orientations-grid" id="orientationsGrid"></div>
-    </div>
+        <!-- Right Sidebar -->
+        <div class="right-sidebar">
+            <!-- Font Tab: Send & Export -->
+            <div id="fontRightSidebar" class="tab-sidebar-content active">
+                <div class="sidebar-section">
+                    <div class="section-title">Send to Badge</div>
+                    <button class="btn-send" id="btnSendText" onclick="sendTextToBadge()" disabled style="width: 100%;">Send Text to Badge</button>
+                </div>
+                <div class="sidebar-section">
+                    <div class="section-title">Font JSON</div>
+                    <textarea id="jsonOutput" spellcheck="false" style="height: 200px;"></textarea>
+                    <div class="button-row" style="flex-direction: column;">
+                        <button class="btn-primary" onclick="saveJson()">Save JSON</button>
+                        <button class="btn-secondary" onclick="document.getElementById('loadInput').click()">Load JSON</button>
+                        <input type="file" id="loadInput" accept=".json" onchange="loadJson(event)">
+                        <button class="btn-secondary" onclick="applyJson()">Apply JSON</button>
+                    </div>
+                </div>
+            </div>
 
-    <div class="section">
-        <div class="section-title">Preview</div>
-        <div class="preview-section">
-            <input type="text" class="preview-input" id="previewInput" value="Hello World" placeholder="Type text to preview...">
-        </div>
-        <canvas class="preview-canvas" id="previewCanvas" width="600" height="50"></canvas>
-    </div>
-
-    <div class="section">
-        <div class="section-title">JSON Data</div>
-        <textarea id="jsonOutput" spellcheck="false"></textarea>
-        <div class="button-row">
-            <button class="btn-primary" onclick="saveJson()">Save JSON</button>
-            <button class="btn-secondary" onclick="document.getElementById('loadInput').click()">Load JSON</button>
-            <input type="file" id="loadInput" accept=".json" onchange="loadJson(event)">
-            <button class="btn-secondary" onclick="applyJson()">Apply JSON</button>
+            <!-- Image Tab: Send & Export -->
+            <div id="imageRightSidebar" class="tab-sidebar-content">
+                <div class="sidebar-section">
+                    <div class="section-title">Send to Badge</div>
+                    <button class="btn-send" id="btnSendImage" onclick="sendImageToBadge()" disabled style="width: 100%;">Upload Image to Badge</button>
+                </div>
+                <div class="sidebar-section">
+                    <div class="section-title">Export Code</div>
+                    <textarea id="imageCodeOutput" class="code-output" spellcheck="false" readonly style="height: 150px;"></textarea>
+                    <div class="button-row" style="flex-direction: column;">
+                        <button class="btn-primary" onclick="copyImageCode()">Copy Code</button>
+                        <button class="btn-secondary" onclick="exportImageJson()">Save JSON</button>
+                        <button class="btn-secondary" onclick="document.getElementById('imageLoadInput').click()">Load JSON</button>
+                        <input type="file" id="imageLoadInput" accept=".json" onchange="loadImageJson(event)">
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
+        // ==================== TAB SWITCHING ====================
+        function switchTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelector(`.tab[onclick="switchTab('${tabName}')"]`).classList.add('active');
+
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(tabName + 'Tab').classList.add('active');
+
+            // Update sidebar content
+            document.querySelectorAll('.tab-sidebar-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(tabName + 'LeftSidebar').classList.add('active');
+            document.getElementById(tabName + 'RightSidebar').classList.add('active');
+        }
+
+        // ==================== FONT EDITOR ====================
         let font = {};
         let selectedChar = 'A';
+        let isFontMouseDown = false;
+        let fontPaintMode = true; // true = paint on, false = erase
 
-        // Initialize
         async function init() {
             try {
                 const response = await fetch('font.json');
@@ -411,15 +902,16 @@
             renderCharGrid();
             selectChar(selectedChar);
             updatePreview();
+
+            // Initialize image editor
+            initImageEditor();
         }
 
         function renderCharGrid() {
             const grid = document.getElementById('charGrid');
             grid.innerHTML = '';
 
-            // Define character order
             const chars = Object.keys(font).sort((a, b) => {
-                // Sort: uppercase, lowercase, numbers, punctuation
                 const order = (c) => {
                     if (c >= 'A' && c <= 'Z') return 0;
                     if (c >= 'a' && c <= 'z') return 1;
@@ -451,7 +943,6 @@
             selectedChar = char;
             document.getElementById('selectedChar').textContent = char === ' ' ? '(space)' : char;
 
-            // Update button states
             document.querySelectorAll('.char-btn').forEach(btn => {
                 const btnChar = btn.textContent === '\u00A0' ? ' ' : btn.textContent;
                 btn.classList.toggle('selected', btnChar === char);
@@ -461,21 +952,7 @@
             renderOrientations();
         }
 
-        // Byte layout for 6x12 display:
-        // Byte 0: col 0, rows 0-7 (bit 7 = row 0)
-        // Byte 1: col 0 rows 8-11 (bits 7-4) + col 1 rows 8-11 (bits 3-0)
-        // Byte 2: col 1, rows 0-7
-        // Byte 3: col 2, rows 0-7
-        // Byte 4: col 2 rows 8-11 (bits 7-4) + col 3 rows 8-11 (bits 3-0)
-        // Byte 5: col 3, rows 0-7
-        // Byte 6: col 4, rows 0-7
-        // Byte 7: col 4 rows 8-11 (bits 7-4) + col 5 rows 8-11 (bits 3-0)
-        // Byte 8: col 5, rows 0-7
-
-        // Multi-width support:
-        // Single-width: [b0, b1, ..., b8] (9 integers)
-        // Multi-width: [[b0...b8], [b0...b8], ...] (array of 9-byte arrays)
-
+        // Multi-width support functions
         function isMultiWidth(data) {
             return Array.isArray(data) && Array.isArray(data[0]);
         }
@@ -502,7 +979,6 @@
         }
 
         function normalizeFromMultiWidth(data) {
-            // If single segment, convert back to flat array for backwards compatibility
             if (isMultiWidth(data) && data.length === 1) {
                 return data[0];
             }
@@ -511,13 +987,11 @@
 
         function getPixelFromSegment(segment, col, row) {
             if (row < 8) {
-                // Rows 0-7: use bytes 0, 2, 3, 5, 6, 8 for cols 0-5
                 const byteMap = [0, 2, 3, 5, 6, 8];
                 const byteIdx = byteMap[col];
                 const bit = 7 - row;
                 return (segment[byteIdx] >> bit) & 1;
             } else {
-                // Rows 8-11: use bytes 1, 4, 7 (nibble-packed)
                 const nibbleByteMap = [1, 1, 4, 4, 7, 7];
                 const byteIdx = nibbleByteMap[col];
                 const isUpperNibble = (col % 2 === 0);
@@ -551,15 +1025,6 @@
             }
         }
 
-        // Legacy wrappers for backwards compatibility with single-segment operations
-        function getPixelFromBytes(data, col, row) {
-            return getPixelFromSegment(data, col, row);
-        }
-
-        function setPixelInBytes(data, col, row, value) {
-            setPixelInSegment(data, col, row, value);
-        }
-
         function renderPixelGrid() {
             const grid = document.getElementById('pixelGrid');
             grid.innerHTML = '';
@@ -568,20 +1033,16 @@
             const width = getCharWidth(charData);
             const totalCols = width * 6;
 
-            // Update width display
             document.getElementById('widthValue').textContent = width;
             document.getElementById('byteCount').textContent = width * 9;
 
-            // Update grid width dynamically
             grid.style.width = (totalCols * 38 + (totalCols - 1) * 2 + (width - 1) * 4) + 'px';
 
-            // 12 rows x (6 * width) columns
             for (let row = 0; row < 12; row++) {
                 const rowDiv = document.createElement('div');
                 rowDiv.className = 'pixel-row';
 
                 for (let segment = 0; segment < width; segment++) {
-                    // Add segment divider (except before first segment)
                     if (segment > 0) {
                         const divider = document.createElement('div');
                         divider.className = 'segment-divider';
@@ -597,9 +1058,23 @@
                         const isOn = getPixelFromSegment(segmentData, col, row);
                         if (isOn) pixel.classList.add('on');
 
-                        // Closure to capture segment, col, row
                         ((s, c, r) => {
-                            pixel.onclick = () => togglePixel(s, c, r);
+                            pixel.onmousedown = (e) => {
+                                e.preventDefault();
+                                isFontMouseDown = true;
+                                const currentValue = getPixelFromSegment(getSegment(font[selectedChar], s), c, r);
+                                fontPaintMode = !currentValue;
+                                setPixelValue(s, c, r, fontPaintMode);
+                                pixel.classList.toggle('on', fontPaintMode);
+                                updateAfterPixelChange();
+                            };
+                            pixel.onmouseenter = () => {
+                                if (isFontMouseDown) {
+                                    setPixelValue(s, c, r, fontPaintMode);
+                                    pixel.classList.toggle('on', fontPaintMode);
+                                    updateAfterPixelChange();
+                                }
+                            };
                         })(segment, col, row);
 
                         rowDiv.appendChild(pixel);
@@ -609,7 +1084,6 @@
                 grid.appendChild(rowDiv);
             }
 
-            // Render column labels
             const colLabels = document.getElementById('colLabels');
             colLabels.innerHTML = '';
             colLabels.style.width = grid.style.width;
@@ -633,6 +1107,30 @@
             updateJsonOutput();
         }
 
+        function setPixelValue(segment, col, row, value) {
+            if (!font[selectedChar]) {
+                font[selectedChar] = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+            }
+
+            const charData = font[selectedChar];
+            const width = getCharWidth(charData);
+
+            if (width === 1 && segment === 0) {
+                setPixelInSegment(charData, col, row, value ? 1 : 0);
+            } else {
+                const multiData = normalizeToMultiWidth(charData);
+                const segmentData = multiData[segment];
+                setPixelInSegment(segmentData, col, row, value ? 1 : 0);
+                font[selectedChar] = multiData;
+            }
+        }
+
+        function updateAfterPixelChange() {
+            updateJsonOutput();
+            renderOrientations();
+            updatePreview();
+        }
+
         function togglePixel(segment, col, row) {
             if (!font[selectedChar]) {
                 font[selectedChar] = [0, 0, 0, 0, 0, 0, 0, 0, 0];
@@ -642,11 +1140,9 @@
             const width = getCharWidth(charData);
 
             if (width === 1 && segment === 0) {
-                // Single-width character - use flat array
                 const currentValue = getPixelFromSegment(charData, col, row);
                 setPixelInSegment(charData, col, row, currentValue ? 0 : 1);
             } else {
-                // Multi-width character - use nested arrays
                 const multiData = normalizeToMultiWidth(charData);
                 const segmentData = multiData[segment];
                 const currentValue = getPixelFromSegment(segmentData, col, row);
@@ -659,10 +1155,8 @@
             updatePreview();
         }
 
-
         function updateJsonOutput() {
-            const output = document.getElementById('jsonOutput');
-            output.value = JSON.stringify(font, null, 2);
+            document.getElementById('jsonOutput').value = JSON.stringify(font, null, 2);
         }
 
         function saveJson() {
@@ -706,15 +1200,12 @@
             }
         }
 
-        // Get all grapheme clusters (visual characters) from a string
         function getGraphemes(str) {
             if (!str) return [];
-            // Use Intl.Segmenter if available (modern browsers)
             if (typeof Intl !== 'undefined' && Intl.Segmenter) {
                 const segmenter = new Intl.Segmenter('en', { granularity: 'grapheme' });
                 return Array.from(segmenter.segment(str), s => s.segment);
             }
-            // Fallback: use spread operator (works for most emojis)
             return [...str];
         }
 
@@ -723,11 +1214,9 @@
             const ctx = canvas.getContext('2d');
             const text = document.getElementById('previewInput').value;
 
-            // Clear canvas
             ctx.fillStyle = '#111';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Draw each character (6 cols x 12 rows per segment)
             const pixelSize = 3;
             const segmentWidth = 6 * pixelSize;
             const charHeight = 12 * pixelSize;
@@ -735,20 +1224,19 @@
 
             ctx.fillStyle = '#ff4444';
 
-            // Use grapheme segmentation to properly handle emojis
             const chars = getGraphemes(text);
 
             let xPos = 0;
             for (const char of chars) {
-                const charData = font[char] || font[' '] || [0, 0, 0, 0, 0, 0, 0, 0, 0];
+                // Try with variation selectors stripped if not found directly
+                const lookupChar = font[char] ? char : char.replace(/[\uFE0E\uFE0F]/g, '');
+                const charData = font[lookupChar] || font[' '] || [0, 0, 0, 0, 0, 0, 0, 0, 0];
                 const width = getCharWidth(charData);
 
-                // Draw all segments of this character
                 for (let segment = 0; segment < width; segment++) {
                     const segmentData = getSegment(charData, segment);
                     const xStart = xPos + segment * segmentWidth;
 
-                    // Draw 6x12 using correct byte layout
                     for (let col = 0; col < 6; col++) {
                         for (let row = 0; row < 12; row++) {
                             if (getPixelFromSegment(segmentData, col, row)) {
@@ -775,10 +1263,9 @@
             const width = getCharWidth(charData);
             const totalCols = width * 6;
 
-            // Show the correct display with all segments
             const correctBox = document.createElement('div');
             correctBox.className = 'orientation-box matched';
-            correctBox.innerHTML = `<div class="orientation-title"><strong>✓ Badge Display (${totalCols}×12)</strong><br><code>${width > 1 ? `${width} segments` : 'Single width'}</code></div>`;
+            correctBox.innerHTML = `<div class="orientation-title"><strong>Badge Display (${totalCols}x12)</strong><br><code>${width > 1 ? `${width} segments` : 'Single width'}</code></div>`;
 
             const correctGrid = document.createElement('div');
             correctGrid.className = 'mini-grid';
@@ -800,14 +1287,13 @@
             correctBox.appendChild(correctGrid);
             container.appendChild(correctBox);
 
-            // Show byte layout info
             const infoBox = document.createElement('div');
             infoBox.className = 'orientation-box';
             let layoutHtml = `<div class="orientation-title"><strong>Byte Layout</strong></div>
                 <div style="font-size: 10px; color: #888; line-height: 1.4;">`;
 
             if (width > 1) {
-                layoutHtml += `<div style="color: #4a90d9; margin-bottom: 4px;">Multi-width: ${width} × 9 bytes = ${width * 9} bytes</div>`;
+                layoutHtml += `<div style="color: #4a90d9; margin-bottom: 4px;">Multi-width: ${width} x 9 bytes = ${width * 9} bytes</div>`;
             }
 
             layoutHtml += `
@@ -825,11 +1311,8 @@
             container.appendChild(infoBox);
         }
 
-        // Extract first grapheme cluster (visual character) from string
-        // This handles emojis that are multiple code points
         function getFirstGrapheme(str) {
             if (!str) return '';
-            // Use Intl.Segmenter if available (modern browsers)
             if (typeof Intl !== 'undefined' && Intl.Segmenter) {
                 const segmenter = new Intl.Segmenter('en', { granularity: 'grapheme' });
                 const segments = segmenter.segment(str);
@@ -838,7 +1321,6 @@
                 }
                 return '';
             }
-            // Fallback: use spread operator (works for most emojis)
             return [...str][0] || '';
         }
 
@@ -865,20 +1347,15 @@
                 return;
             }
 
-            // Add new character with blank data
             if (width === 1) {
-                // Single-width: flat array
                 font[char] = [0, 0, 0, 0, 0, 0, 0, 0, 0];
             } else {
-                // Multi-width: array of segments
                 font[char] = Array(width).fill(null).map(() => createEmptySegment());
             }
 
-            // Clear input
             input.value = '';
             widthInput.value = '1';
 
-            // Refresh the character grid and select the new character
             renderCharGrid();
             selectChar(char);
             updatePreview();
@@ -896,17 +1373,12 @@
             const charDisplay = selectedChar === ' ' ? '(space)' : selectedChar;
             const confirmed = confirm(`Are you sure you want to delete the character "${charDisplay}"?\n\nThis action cannot be undone!`);
 
-            if (!confirmed) {
-                return;
-            }
+            if (!confirmed) return;
 
-            // Delete the character
             delete font[selectedChar];
 
-            // Select a different character (first available, or show empty state)
             const remainingChars = Object.keys(font);
             if (remainingChars.length > 0) {
-                // Sort and select first character
                 remainingChars.sort((a, b) => {
                     const order = (c) => {
                         if (c >= 'A' && c <= 'Z') return 0;
@@ -927,18 +1399,14 @@
         }
 
         function clearCurrentChar() {
-            if (!font[selectedChar]) {
-                return;
-            }
+            if (!font[selectedChar]) return;
 
             const charData = font[selectedChar];
             const width = getCharWidth(charData);
 
             if (width === 1) {
-                // Single-width: reset to zeros
                 font[selectedChar] = [0, 0, 0, 0, 0, 0, 0, 0, 0];
             } else {
-                // Multi-width: reset all segments to zeros
                 font[selectedChar] = Array(width).fill(null).map(() => createEmptySegment());
             }
 
@@ -954,10 +1422,7 @@
 
             const charData = font[selectedChar];
             const multiData = normalizeToMultiWidth(charData);
-
-            // Add a new empty segment
             multiData.push(createEmptySegment());
-
             font[selectedChar] = multiData;
 
             renderPixelGrid();
@@ -966,9 +1431,7 @@
         }
 
         function decreaseWidth() {
-            if (!font[selectedChar]) {
-                return;
-            }
+            if (!font[selectedChar]) return;
 
             const charData = font[selectedChar];
             const width = getCharWidth(charData);
@@ -979,8 +1442,6 @@
             }
 
             const multiData = normalizeToMultiWidth(charData);
-
-            // Check if last segment has any pixels
             const lastSegment = multiData[multiData.length - 1];
             const hasPixels = lastSegment.some(b => b !== 0);
 
@@ -989,10 +1450,7 @@
                 if (!confirmed) return;
             }
 
-            // Remove last segment
             multiData.pop();
-
-            // Normalize back (if single segment, convert to flat array)
             font[selectedChar] = normalizeFromMultiWidth(multiData);
 
             renderPixelGrid();
@@ -1000,18 +1458,1115 @@
             updatePreview();
         }
 
+        // ==================== IMAGE EDITOR ====================
+        let imagePixels = []; // 12 rows x N cols
+        let imageWidthSegments = 8; // Number of 6-pixel segments
+        let isMouseDown = false;
+        let paintMode = true; // true = paint on, false = erase
+
+        function initImageEditor() {
+            // Initialize blank image
+            resizeImagePixels(imageWidthSegments);
+            updateImageSizeDisplay();
+            renderImageGrid();
+            updateImagePreview();
+            updateImageCode();
+        }
+
+        function resizeImagePixels(newWidthSegments) {
+            const newWidth = newWidthSegments * 6;
+            const oldWidth = imagePixels.length > 0 ? imagePixels[0].length : 0;
+
+            if (oldWidth === 0) {
+                // Initialize fresh
+                imagePixels = [];
+                for (let row = 0; row < 12; row++) {
+                    imagePixels.push(new Array(newWidth).fill(false));
+                }
+            } else if (newWidth > oldWidth) {
+                // Extend each row
+                for (let row = 0; row < 12; row++) {
+                    while (imagePixels[row].length < newWidth) {
+                        imagePixels[row].push(false);
+                    }
+                }
+            } else if (newWidth < oldWidth) {
+                // Truncate each row
+                for (let row = 0; row < 12; row++) {
+                    imagePixels[row] = imagePixels[row].slice(0, newWidth);
+                }
+            }
+        }
+
+        function updateImageSizeDisplay() {
+            const width = imageWidthSegments * 6;
+            document.getElementById('imageSizeDisplay').textContent = `${width} × 12`;
+            document.getElementById('imageSegmentsDisplay').textContent = imageWidthSegments;
+            document.getElementById('imageBytesDisplay').textContent = imageWidthSegments * 9;
+            document.getElementById('imageWidthValue').textContent = imageWidthSegments;
+            document.getElementById('imagePixelWidth').textContent = width;
+        }
+
+        function increaseImageWidth() {
+            if (imageWidthSegments >= 50) {
+                alert('Maximum width is 50 segments (300 pixels)');
+                return;
+            }
+            imageWidthSegments++;
+            resizeImagePixels(imageWidthSegments);
+            updateImageSizeDisplay();
+            renderImageGrid();
+            updateImagePreview();
+            updateImageCode();
+        }
+
+        function decreaseImageWidth() {
+            if (imageWidthSegments <= 1) {
+                alert('Minimum width is 1 segment (6 pixels)');
+                return;
+            }
+            imageWidthSegments--;
+            resizeImagePixels(imageWidthSegments);
+            updateImageSizeDisplay();
+            renderImageGrid();
+            updateImagePreview();
+            updateImageCode();
+        }
+
+        function renderImageGrid() {
+            const grid = document.getElementById('imagePixelGrid');
+            grid.innerHTML = '';
+
+            const totalCols = imageWidthSegments * 6;
+            grid.style.gridTemplateColumns = `repeat(${totalCols}, 14px)`;
+
+            for (let row = 0; row < 12; row++) {
+                for (let col = 0; col < totalCols; col++) {
+                    const pixel = document.createElement('div');
+                    pixel.className = 'pixel small' + (imagePixels[row][col] ? ' on' : '');
+
+                    ((r, c) => {
+                        pixel.onmousedown = (e) => {
+                            e.preventDefault();
+                            isMouseDown = true;
+                            paintMode = !imagePixels[r][c];
+                            imagePixels[r][c] = paintMode;
+                            pixel.classList.toggle('on', paintMode);
+                            updateImagePreview();
+                            updateImageCode();
+                        };
+                        pixel.onmouseenter = () => {
+                            if (isMouseDown) {
+                                imagePixels[r][c] = paintMode;
+                                pixel.classList.toggle('on', paintMode);
+                                updateImagePreview();
+                                updateImageCode();
+                            }
+                        };
+                    })(row, col);
+
+                    grid.appendChild(pixel);
+                }
+            }
+        }
+
+        document.addEventListener('mouseup', () => {
+            isMouseDown = false;
+            isFontMouseDown = false;
+        });
+
+        function updateImagePreview() {
+            const preview = document.getElementById('imagePreview');
+            preview.innerHTML = '';
+
+            const totalCols = imageWidthSegments * 6;
+            preview.style.gridTemplateColumns = `repeat(${totalCols}, 6px)`;
+
+            for (let row = 0; row < 12; row++) {
+                for (let col = 0; col < totalCols; col++) {
+                    const pixel = document.createElement('div');
+                    pixel.className = 'mini-pixel' + (imagePixels[row][col] ? ' on' : '');
+                    preview.appendChild(pixel);
+                }
+            }
+        }
+
+        function encodeImageToBytes() {
+            // Encode Nx12 image to bytes (N segments x 9 bytes each)
+            const bytes = [];
+
+            for (let seg = 0; seg < imageWidthSegments; seg++) {
+                const startCol = seg * 6;
+                const segment = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+                for (let localCol = 0; localCol < 6; localCol++) {
+                    const col = startCol + localCol;
+
+                    // Rows 0-7: one byte per column
+                    let byteVal = 0;
+                    for (let row = 0; row < 8; row++) {
+                        if (imagePixels[row][col]) {
+                            byteVal |= (1 << (7 - row));
+                        }
+                    }
+                    const byteMap = [0, 2, 3, 5, 6, 8];
+                    segment[byteMap[localCol]] = byteVal;
+
+                    // Rows 8-11: nibble-packed
+                    let nibbleVal = 0;
+                    for (let row = 8; row < 12; row++) {
+                        if (imagePixels[row][col]) {
+                            nibbleVal |= (1 << (11 - row));
+                        }
+                    }
+
+                    const nibbleByteMap = [1, 1, 4, 4, 7, 7];
+                    const byteIdx = nibbleByteMap[localCol];
+
+                    if (localCol % 2 === 0) {
+                        segment[byteIdx] |= (nibbleVal << 4);
+                    } else {
+                        segment[byteIdx] |= nibbleVal;
+                    }
+                }
+
+                bytes.push(...segment);
+            }
+
+            return bytes;
+        }
+
+        function decodeImageFromBytes(bytes, numSegments = null) {
+            // Decode bytes to pixel array
+            const segments = numSegments || Math.floor(bytes.length / 9);
+            imageWidthSegments = segments;
+            const totalCols = segments * 6;
+
+            imagePixels = [];
+            for (let row = 0; row < 12; row++) {
+                imagePixels.push(new Array(totalCols).fill(false));
+            }
+
+            for (let seg = 0; seg < segments; seg++) {
+                const startCol = seg * 6;
+                const baseIdx = seg * 9;
+
+                for (let localCol = 0; localCol < 6; localCol++) {
+                    const col = startCol + localCol;
+
+                    // Rows 0-7
+                    const byteMap = [0, 2, 3, 5, 6, 8];
+                    const byteVal = bytes[baseIdx + byteMap[localCol]] || 0;
+                    for (let row = 0; row < 8; row++) {
+                        if ((byteVal >> (7 - row)) & 1) {
+                            imagePixels[row][col] = true;
+                        }
+                    }
+
+                    // Rows 8-11
+                    const nibbleByteMap = [1, 1, 4, 4, 7, 7];
+                    const nibbleByte = bytes[baseIdx + nibbleByteMap[localCol]] || 0;
+                    const isUpper = (localCol % 2 === 0);
+
+                    for (let row = 8; row < 12; row++) {
+                        const bit = isUpper ? (7 - (row - 8)) : (3 - (row - 8));
+                        if ((nibbleByte >> bit) & 1) {
+                            imagePixels[row][col] = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        function updateImageCode() {
+            const bytes = encodeImageToBytes();
+            const hexStr = bytes.map(b => b.toString(16).padStart(2, '0')).join('');
+
+            // Build segment lines dynamically
+            let segmentLines = [];
+            for (let seg = 0; seg < imageWidthSegments; seg++) {
+                const start = seg * 9;
+                const segBytes = bytes.slice(start, start + 9).join(', ');
+                segmentLines.push(`    ${segBytes},  # Segment ${seg}`);
+            }
+
+            const code = `# Image data (${bytes.length} bytes, ${imageWidthSegments} segments, ${imageWidthSegments * 6}x12 pixels)
+image_bytes = bytes([
+${segmentLines.join('\n')}
+])
+
+# Hex string
+hex_data = "${hexStr}"
+
+# Usage with badge_controller:
+# await badge.upload_image(image_bytes)`;
+
+            document.getElementById('imageCodeOutput').value = code;
+        }
+
+        function copyImageCode() {
+            const output = document.getElementById('imageCodeOutput');
+            output.select();
+            document.execCommand('copy');
+            alert('Code copied to clipboard!');
+        }
+
+        function clearImage() {
+            const totalCols = imageWidthSegments * 6;
+            for (let row = 0; row < 12; row++) {
+                for (let col = 0; col < totalCols; col++) {
+                    imagePixels[row][col] = false;
+                }
+            }
+            renderImageGrid();
+            updateImagePreview();
+            updateImageCode();
+        }
+
+        function invertImage() {
+            const totalCols = imageWidthSegments * 6;
+            for (let row = 0; row < 12; row++) {
+                for (let col = 0; col < totalCols; col++) {
+                    imagePixels[row][col] = !imagePixels[row][col];
+                }
+            }
+            renderImageGrid();
+            updateImagePreview();
+            updateImageCode();
+        }
+
+        function shiftImageLeft() {
+            for (let row = 0; row < 12; row++) {
+                const first = imagePixels[row].shift();
+                imagePixels[row].push(first);
+            }
+            renderImageGrid();
+            updateImagePreview();
+            updateImageCode();
+        }
+
+        function shiftImageRight() {
+            for (let row = 0; row < 12; row++) {
+                const last = imagePixels[row].pop();
+                imagePixels[row].unshift(last);
+            }
+            renderImageGrid();
+            updateImagePreview();
+            updateImageCode();
+        }
+
+        function exportImageJson() {
+            const bytes = encodeImageToBytes();
+            const data = {
+                width: imageWidthSegments * 6,
+                height: 12,
+                segments: imageWidthSegments,
+                bytes: bytes
+            };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'badge-image.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function loadImageJson(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (data.bytes && Array.isArray(data.bytes)) {
+                        const segments = data.segments || Math.floor(data.bytes.length / 9);
+                        decodeImageFromBytes(data.bytes, segments);
+                        updateImageSizeDisplay();
+                        renderImageGrid();
+                        updateImagePreview();
+                        updateImageCode();
+                    } else {
+                        alert('Invalid image JSON format');
+                    }
+                } catch (err) {
+                    alert('Invalid JSON file: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        // Preset images
+        const presets = {
+            blank: [],
+            sunglasses: [
+                "000000000000000000000000000000000000000000000000",
+                "000000000000000000000000000000000000000000000000",
+                "000111111111000000000000000000001111111110000000",
+                "001111111111100000000000000000011111111111000000",
+                "011111111111110000111111110000111111111111100000",
+                "011111111111110000111111110000111111111111100000",
+                "011111111111110000111111110000111111111111100000",
+                "011111111111110000111111110000111111111111100000",
+                "001111111111100000011111100000011111111111000000",
+                "000111111111000000000000000000001111111110000000",
+                "000000000000000000000000000000000000000000000000",
+                "000000000000000000000000000000000000000000000000",
+            ],
+            heart: [
+                "000000000000000000000000000000000000000000000000",
+                "000000011110000000000000000000000111100000000000",
+                "000000111111000000000000000000001111110000000000",
+                "000001111111100000000000000000011111111000000000",
+                "000011111111110000000000000000111111111100000000",
+                "000011111111111100000000000011111111111100000000",
+                "000001111111111111100000011111111111111000000000",
+                "000000111111111111111111111111111111110000000000",
+                "000000011111111111111111111111111111100000000000",
+                "000000000111111111111111111111111110000000000000",
+                "000000000001111111111111111111110000000000000000",
+                "000000000000000111111111111000000000000000000000",
+            ],
+            smiley: [
+                "000000000000000001111111111000000000000000000000",
+                "000000000000000111111111111110000000000000000000",
+                "000000000000011111111111111111100000000000000000",
+                "000000000000111110011111001111110000000000000000",
+                "000000000001111100011111000111111000000000000000",
+                "000000000001111111111111111111111000000000000000",
+                "000000000001111111111111111111111000000000000000",
+                "000000000001110011111111111001111000000000000000",
+                "000000000000111100111111110011110000000000000000",
+                "000000000000011111000000001111100000000000000000",
+                "000000000000000111111111111110000000000000000000",
+                "000000000000000001111111111000000000000000000000",
+            ],
+            arrow: [
+                "000000000000000000000011000000000000000000000000",
+                "000000000000000000000111100000000000000000000000",
+                "000000000000000000001111110000000000000000000000",
+                "000000000000000000011111111000000000000000000000",
+                "000000000000000000111111111100000000000000000000",
+                "111111111111111111111111111111111111111111111111",
+                "111111111111111111111111111111111111111111111111",
+                "000000000000000000111111111100000000000000000000",
+                "000000000000000000011111111000000000000000000000",
+                "000000000000000000001111110000000000000000000000",
+                "000000000000000000000111100000000000000000000000",
+                "000000000000000000000011000000000000000000000000",
+            ],
+            checkerboard: [
+                "101010101010101010101010101010101010101010101010",
+                "010101010101010101010101010101010101010101010101",
+                "101010101010101010101010101010101010101010101010",
+                "010101010101010101010101010101010101010101010101",
+                "101010101010101010101010101010101010101010101010",
+                "010101010101010101010101010101010101010101010101",
+                "101010101010101010101010101010101010101010101010",
+                "010101010101010101010101010101010101010101010101",
+                "101010101010101010101010101010101010101010101010",
+                "010101010101010101010101010101010101010101010101",
+                "101010101010101010101010101010101010101010101010",
+                "010101010101010101010101010101010101010101010101",
+            ]
+        };
+
+        function loadPreset(name) {
+            if (name === 'blank') {
+                clearImage();
+                return;
+            }
+
+            const pattern = presets[name];
+            if (!pattern) return;
+
+            // Presets are 48 pixels wide, reset to 8 segments
+            imageWidthSegments = 8;
+            resizeImagePixels(imageWidthSegments);
+            updateImageSizeDisplay();
+
+            for (let row = 0; row < 12; row++) {
+                for (let col = 0; col < 48; col++) {
+                    imagePixels[row][col] = pattern[row][col] === '1';
+                }
+            }
+
+            renderImageGrid();
+            updateImagePreview();
+            updateImageCode();
+        }
+
         // Event listeners
         document.getElementById('previewInput').addEventListener('input', updatePreview);
-
-        // Allow Enter key to add character
         document.getElementById('newCharInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                addNewChar();
-            }
+            if (e.key === 'Enter') addNewChar();
         });
+
+        // ==================== BLUETOOTH FUNCTIONALITY ====================
+
+        // BLE Protocol Constants
+        const BLE_SERVICE_UUID = '0000fee9-0000-1000-8000-00805f9b34fb';
+        const BLE_COMMAND_CHAR = 'd44bc439-abfd-45a2-b575-925416129600';
+        const BLE_IMAGE_CHAR = 'd44bc439-abfd-45a2-b575-92541612960a';
+        const BLE_NOTIFY_CHAR = 'd44bc439-abfd-45a2-b575-925416129601';
+
+        // AES encryption key for idealLED badges
+        const AES_KEY = new Uint8Array([0x34, 0x52, 0x2A, 0x5B, 0x7A, 0x6E, 0x49, 0x2C,
+                                         0x08, 0x09, 0x0A, 0x9D, 0x8D, 0x2A, 0x23, 0xF8]);
+
+        // Scroll mode values
+        const SCROLL_MODES = {
+            STATIC: 1,
+            LEFT: 3,
+            RIGHT: 4,
+            UP: 5,
+            DOWN: 6,
+            SNOW: 7
+        };
+
+        // Bluetooth state
+        let bleDevice = null;
+        let bleServer = null;
+        let commandCharacteristic = null;
+        let imageCharacteristic = null;
+        let notifyCharacteristic = null;
+        let aesKey = null;
+        let isConnected = false;
+
+        // ==================== AES-ECB Implementation ====================
+        // Pure JavaScript AES implementation for ECB mode (required since Web Crypto doesn't support ECB)
+
+        const AES_SBOX = [
+            0x63,0x7c,0x77,0x7b,0xf2,0x6b,0x6f,0xc5,0x30,0x01,0x67,0x2b,0xfe,0xd7,0xab,0x76,
+            0xca,0x82,0xc9,0x7d,0xfa,0x59,0x47,0xf0,0xad,0xd4,0xa2,0xaf,0x9c,0xa4,0x72,0xc0,
+            0xb7,0xfd,0x93,0x26,0x36,0x3f,0xf7,0xcc,0x34,0xa5,0xe5,0xf1,0x71,0xd8,0x31,0x15,
+            0x04,0xc7,0x23,0xc3,0x18,0x96,0x05,0x9a,0x07,0x12,0x80,0xe2,0xeb,0x27,0xb2,0x75,
+            0x09,0x83,0x2c,0x1a,0x1b,0x6e,0x5a,0xa0,0x52,0x3b,0xd6,0xb3,0x29,0xe3,0x2f,0x84,
+            0x53,0xd1,0x00,0xed,0x20,0xfc,0xb1,0x5b,0x6a,0xcb,0xbe,0x39,0x4a,0x4c,0x58,0xcf,
+            0xd0,0xef,0xaa,0xfb,0x43,0x4d,0x33,0x85,0x45,0xf9,0x02,0x7f,0x50,0x3c,0x9f,0xa8,
+            0x51,0xa3,0x40,0x8f,0x92,0x9d,0x38,0xf5,0xbc,0xb6,0xda,0x21,0x10,0xff,0xf3,0xd2,
+            0xcd,0x0c,0x13,0xec,0x5f,0x97,0x44,0x17,0xc4,0xa7,0x7e,0x3d,0x64,0x5d,0x19,0x73,
+            0x60,0x81,0x4f,0xdc,0x22,0x2a,0x90,0x88,0x46,0xee,0xb8,0x14,0xde,0x5e,0x0b,0xdb,
+            0xe0,0x32,0x3a,0x0a,0x49,0x06,0x24,0x5c,0xc2,0xd3,0xac,0x62,0x91,0x95,0xe4,0x79,
+            0xe7,0xc8,0x37,0x6d,0x8d,0xd5,0x4e,0xa9,0x6c,0x56,0xf4,0xea,0x65,0x7a,0xae,0x08,
+            0xba,0x78,0x25,0x2e,0x1c,0xa6,0xb4,0xc6,0xe8,0xdd,0x74,0x1f,0x4b,0xbd,0x8b,0x8a,
+            0x70,0x3e,0xb5,0x66,0x48,0x03,0xf6,0x0e,0x61,0x35,0x57,0xb9,0x86,0xc1,0x1d,0x9e,
+            0xe1,0xf8,0x98,0x11,0x69,0xd9,0x8e,0x94,0x9b,0x1e,0x87,0xe9,0xce,0x55,0x28,0xdf,
+            0x8c,0xa1,0x89,0x0d,0xbf,0xe6,0x42,0x68,0x41,0x99,0x2d,0x0f,0xb0,0x54,0xbb,0x16
+        ];
+
+        const AES_RSBOX = [
+            0x52,0x09,0x6a,0xd5,0x30,0x36,0xa5,0x38,0xbf,0x40,0xa3,0x9e,0x81,0xf3,0xd7,0xfb,
+            0x7c,0xe3,0x39,0x82,0x9b,0x2f,0xff,0x87,0x34,0x8e,0x43,0x44,0xc4,0xde,0xe9,0xcb,
+            0x54,0x7b,0x94,0x32,0xa6,0xc2,0x23,0x3d,0xee,0x4c,0x95,0x0b,0x42,0xfa,0xc3,0x4e,
+            0x08,0x2e,0xa1,0x66,0x28,0xd9,0x24,0xb2,0x76,0x5b,0xa2,0x49,0x6d,0x8b,0xd1,0x25,
+            0x72,0xf8,0xf6,0x64,0x86,0x68,0x98,0x16,0xd4,0xa4,0x5c,0xcc,0x5d,0x65,0xb6,0x92,
+            0x6c,0x70,0x48,0x50,0xfd,0xed,0xb9,0xda,0x5e,0x15,0x46,0x57,0xa7,0x8d,0x9d,0x84,
+            0x90,0xd8,0xab,0x00,0x8c,0xbc,0xd3,0x0a,0xf7,0xe4,0x58,0x05,0xb8,0xb3,0x45,0x06,
+            0xd0,0x2c,0x1e,0x8f,0xca,0x3f,0x0f,0x02,0xc1,0xaf,0xbd,0x03,0x01,0x13,0x8a,0x6b,
+            0x3a,0x91,0x11,0x41,0x4f,0x67,0xdc,0xea,0x97,0xf2,0xcf,0xce,0xf0,0xb4,0xe6,0x73,
+            0x96,0xac,0x74,0x22,0xe7,0xad,0x35,0x85,0xe2,0xf9,0x37,0xe8,0x1c,0x75,0xdf,0x6e,
+            0x47,0xf1,0x1a,0x71,0x1d,0x29,0xc5,0x89,0x6f,0xb7,0x62,0x0e,0xaa,0x18,0xbe,0x1b,
+            0xfc,0x56,0x3e,0x4b,0xc6,0xd2,0x79,0x20,0x9a,0xdb,0xc0,0xfe,0x78,0xcd,0x5a,0xf4,
+            0x1f,0xdd,0xa8,0x33,0x88,0x07,0xc7,0x31,0xb1,0x12,0x10,0x59,0x27,0x80,0xec,0x5f,
+            0x60,0x51,0x7f,0xa9,0x19,0xb5,0x4a,0x0d,0x2d,0xe5,0x7a,0x9f,0x93,0xc9,0x9c,0xef,
+            0xa0,0xe0,0x3b,0x4d,0xae,0x2a,0xf5,0xb0,0xc8,0xeb,0xbb,0x3c,0x83,0x53,0x99,0x61,
+            0x17,0x2b,0x04,0x7e,0xba,0x77,0xd6,0x26,0xe1,0x69,0x14,0x63,0x55,0x21,0x0c,0x7d
+        ];
+
+        const AES_RCON = [0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80,0x1b,0x36];
+
+        function aesKeyExpansion(key) {
+            const keyWords = [];
+            for (let i = 0; i < 4; i++) {
+                keyWords[i] = (key[4*i] << 24) | (key[4*i+1] << 16) | (key[4*i+2] << 8) | key[4*i+3];
+            }
+
+            for (let i = 4; i < 44; i++) {
+                let temp = keyWords[i - 1];
+                if (i % 4 === 0) {
+                    temp = ((AES_SBOX[(temp >> 16) & 0xff] << 24) |
+                            (AES_SBOX[(temp >> 8) & 0xff] << 16) |
+                            (AES_SBOX[temp & 0xff] << 8) |
+                            AES_SBOX[(temp >> 24) & 0xff]) ^ (AES_RCON[i/4 - 1] << 24);
+                }
+                keyWords[i] = keyWords[i - 4] ^ temp;
+            }
+            return keyWords;
+        }
+
+        function aesEncryptBlock(block, keyWords) {
+            let state = new Uint8Array(16);
+            for (let i = 0; i < 16; i++) state[i] = block[i];
+
+            // AddRoundKey
+            for (let i = 0; i < 4; i++) {
+                const w = keyWords[i];
+                state[i*4] ^= (w >> 24) & 0xff;
+                state[i*4+1] ^= (w >> 16) & 0xff;
+                state[i*4+2] ^= (w >> 8) & 0xff;
+                state[i*4+3] ^= w & 0xff;
+            }
+
+            for (let round = 1; round <= 10; round++) {
+                // SubBytes
+                for (let i = 0; i < 16; i++) state[i] = AES_SBOX[state[i]];
+
+                // ShiftRows
+                let t = state[1]; state[1] = state[5]; state[5] = state[9]; state[9] = state[13]; state[13] = t;
+                t = state[2]; state[2] = state[10]; state[10] = t; t = state[6]; state[6] = state[14]; state[14] = t;
+                t = state[15]; state[15] = state[11]; state[11] = state[7]; state[7] = state[3]; state[3] = t;
+
+                // MixColumns (skip in last round)
+                if (round < 10) {
+                    for (let c = 0; c < 4; c++) {
+                        const s0 = state[c*4], s1 = state[c*4+1], s2 = state[c*4+2], s3 = state[c*4+3];
+                        state[c*4] = gfMul(2,s0) ^ gfMul(3,s1) ^ s2 ^ s3;
+                        state[c*4+1] = s0 ^ gfMul(2,s1) ^ gfMul(3,s2) ^ s3;
+                        state[c*4+2] = s0 ^ s1 ^ gfMul(2,s2) ^ gfMul(3,s3);
+                        state[c*4+3] = gfMul(3,s0) ^ s1 ^ s2 ^ gfMul(2,s3);
+                    }
+                }
+
+                // AddRoundKey
+                for (let i = 0; i < 4; i++) {
+                    const w = keyWords[round * 4 + i];
+                    state[i*4] ^= (w >> 24) & 0xff;
+                    state[i*4+1] ^= (w >> 16) & 0xff;
+                    state[i*4+2] ^= (w >> 8) & 0xff;
+                    state[i*4+3] ^= w & 0xff;
+                }
+            }
+            return state;
+        }
+
+        function aesDecryptBlock(block, keyWords) {
+            let state = new Uint8Array(16);
+            for (let i = 0; i < 16; i++) state[i] = block[i];
+
+            // AddRoundKey (last round key)
+            for (let i = 0; i < 4; i++) {
+                const w = keyWords[40 + i];
+                state[i*4] ^= (w >> 24) & 0xff;
+                state[i*4+1] ^= (w >> 16) & 0xff;
+                state[i*4+2] ^= (w >> 8) & 0xff;
+                state[i*4+3] ^= w & 0xff;
+            }
+
+            for (let round = 9; round >= 0; round--) {
+                // InvShiftRows
+                let t = state[13]; state[13] = state[9]; state[9] = state[5]; state[5] = state[1]; state[1] = t;
+                t = state[2]; state[2] = state[10]; state[10] = t; t = state[6]; state[6] = state[14]; state[14] = t;
+                t = state[3]; state[3] = state[7]; state[7] = state[11]; state[11] = state[15]; state[15] = t;
+
+                // InvSubBytes
+                for (let i = 0; i < 16; i++) state[i] = AES_RSBOX[state[i]];
+
+                // AddRoundKey
+                for (let i = 0; i < 4; i++) {
+                    const w = keyWords[round * 4 + i];
+                    state[i*4] ^= (w >> 24) & 0xff;
+                    state[i*4+1] ^= (w >> 16) & 0xff;
+                    state[i*4+2] ^= (w >> 8) & 0xff;
+                    state[i*4+3] ^= w & 0xff;
+                }
+
+                // InvMixColumns (skip in first round)
+                if (round > 0) {
+                    for (let c = 0; c < 4; c++) {
+                        const s0 = state[c*4], s1 = state[c*4+1], s2 = state[c*4+2], s3 = state[c*4+3];
+                        state[c*4] = gfMul(14,s0) ^ gfMul(11,s1) ^ gfMul(13,s2) ^ gfMul(9,s3);
+                        state[c*4+1] = gfMul(9,s0) ^ gfMul(14,s1) ^ gfMul(11,s2) ^ gfMul(13,s3);
+                        state[c*4+2] = gfMul(13,s0) ^ gfMul(9,s1) ^ gfMul(14,s2) ^ gfMul(11,s3);
+                        state[c*4+3] = gfMul(11,s0) ^ gfMul(13,s1) ^ gfMul(9,s2) ^ gfMul(14,s3);
+                    }
+                }
+            }
+            return state;
+        }
+
+        function gfMul(a, b) {
+            let p = 0;
+            for (let i = 0; i < 8; i++) {
+                if (b & 1) p ^= a;
+                const hi = a & 0x80;
+                a = (a << 1) & 0xff;
+                if (hi) a ^= 0x1b;
+                b >>= 1;
+            }
+            return p;
+        }
+
+        // Initialize AES key expansion
+        function initAesKey() {
+            aesKey = aesKeyExpansion(AES_KEY);
+        }
+
+        // AES-ECB encrypt
+        function aesEcbEncrypt(data) {
+            const padded = new Uint8Array(16);
+            padded.set(data.slice(0, 16));
+            return aesEncryptBlock(padded, aesKey);
+        }
+
+        // AES-ECB decrypt
+        function aesEcbDecrypt(data) {
+            const padded = new Uint8Array(16);
+            padded.set(data.slice(0, 16));
+            return aesDecryptBlock(padded, aesKey);
+        }
+
+        // Build and encrypt a command packet
+        function buildCommand(command, ...args) {
+            const cmdBytes = new TextEncoder().encode(command);
+            // Length is command + args (NOT including the length byte itself)
+            const payloadLen = cmdBytes.length + args.length;
+
+            const packet = new Uint8Array(16);
+            packet[0] = payloadLen;
+            packet.set(cmdBytes, 1);
+
+            for (let i = 0; i < args.length; i++) {
+                packet[1 + cmdBytes.length + i] = args[i] & 0xFF;
+            }
+
+            return aesEcbEncrypt(packet);
+        }
+
+        // Build encrypted data packets for image/text upload
+        function buildDataPackets(data) {
+            const packets = [];
+            const dataArray = data instanceof Uint8Array ? data : new Uint8Array(data);
+
+            for (let offset = 0; offset < dataArray.length; offset += 15) {
+                const chunk = dataArray.slice(offset, Math.min(offset + 15, dataArray.length));
+                const packet = new Uint8Array(16);
+                packet[0] = chunk.length;
+                packet.set(chunk, 1);
+
+                const encrypted = aesEcbEncrypt(packet);
+                packets.push(encrypted);
+            }
+
+            return packets;
+        }
+
+        // Logging helper
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('logOutput');
+            logDiv.style.display = 'block';
+
+            const entry = document.createElement('div');
+            entry.className = `log-${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+
+            // Keep only last 50 entries
+            while (logDiv.children.length > 50) {
+                logDiv.removeChild(logDiv.firstChild);
+            }
+        }
+
+        // Update UI based on connection state
+        function updateConnectionUI() {
+            const connectBtn = document.getElementById('connectBtn');
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+            const deviceInfo = document.getElementById('deviceInfo');
+
+            // Control buttons
+            const controlBtns = ['btnLedOn', 'btnLedOff', 'btnApplySettings', 'btnSendText', 'btnSendImage'];
+
+            if (isConnected) {
+                connectBtn.textContent = 'Disconnect';
+                connectBtn.classList.add('connected');
+                statusDot.className = 'status-dot connected';
+                statusText.textContent = 'Connected';
+                deviceInfo.style.display = 'block';
+                document.getElementById('deviceName').textContent = bleDevice?.name || 'Unknown';
+
+                controlBtns.forEach(id => {
+                    const btn = document.getElementById(id);
+                    if (btn) btn.disabled = false;
+                });
+            } else {
+                connectBtn.textContent = 'Connect Badge';
+                connectBtn.classList.remove('connected');
+                statusDot.className = 'status-dot';
+                statusText.textContent = 'Disconnected';
+                deviceInfo.style.display = 'none';
+
+                controlBtns.forEach(id => {
+                    const btn = document.getElementById(id);
+                    if (btn) btn.disabled = true;
+                });
+            }
+
+            connectBtn.disabled = false;
+        }
+
+        function setConnecting() {
+            const connectBtn = document.getElementById('connectBtn');
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+
+            connectBtn.textContent = 'Connecting...';
+            connectBtn.disabled = true;
+            statusDot.className = 'status-dot connecting';
+            statusText.textContent = 'Connecting...';
+        }
+
+        // Connect to badge via Web Bluetooth
+        async function connectToBadge() {
+            try {
+                setConnecting();
+                log('Scanning for LED badge...', 'info');
+
+                // Request device with the LED badge service
+                bleDevice = await navigator.bluetooth.requestDevice({
+                    filters: [{ services: [BLE_SERVICE_UUID] }],
+                    optionalServices: [BLE_SERVICE_UUID]
+                });
+
+                log(`Found device: ${bleDevice.name}`, 'success');
+
+                // Listen for disconnection
+                bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
+
+                // Connect to GATT server
+                log('Connecting to GATT server...', 'info');
+                bleServer = await bleDevice.gatt.connect();
+
+                // Get the service
+                log('Getting service...', 'info');
+                const service = await bleServer.getPrimaryService(BLE_SERVICE_UUID);
+
+                // Get characteristics
+                log('Getting characteristics...', 'info');
+                commandCharacteristic = await service.getCharacteristic(BLE_COMMAND_CHAR);
+                imageCharacteristic = await service.getCharacteristic(BLE_IMAGE_CHAR);
+
+                try {
+                    notifyCharacteristic = await service.getCharacteristic(BLE_NOTIFY_CHAR);
+                    await notifyCharacteristic.startNotifications();
+                    notifyCharacteristic.addEventListener('characteristicvaluechanged', onNotification);
+                    log('Notifications enabled', 'info');
+                } catch (e) {
+                    log('Notifications not available (non-critical)', 'info');
+                }
+
+                isConnected = true;
+                updateConnectionUI();
+                log('Connected successfully!', 'success');
+
+            } catch (error) {
+                log(`Connection failed: ${error.message}`, 'error');
+                isConnected = false;
+                updateConnectionUI();
+            }
+        }
+
+        // Handle disconnection
+        function onDisconnected() {
+            log('Disconnected from badge', 'info');
+            isConnected = false;
+            bleServer = null;
+            commandCharacteristic = null;
+            imageCharacteristic = null;
+            notifyCharacteristic = null;
+            updateConnectionUI();
+        }
+
+        // Handle notifications from badge
+        function onNotification(event) {
+            const value = event.target.value;
+            const data = new Uint8Array(value.buffer);
+
+            try {
+                const decrypted = aesEcbDecrypt(data);
+                const text = new TextDecoder().decode(decrypted).replace(/\0/g, '').trim();
+                if (text) {
+                    log(`Badge: ${text}`, 'success');
+                }
+            } catch (e) {
+                // Fallback to hex display if decryption fails
+                const hex = Array.from(data).map(b => b.toString(16).padStart(2, '0')).join(' ');
+                log(`Badge (raw): ${hex}`, 'info');
+            }
+        }
+
+        // Disconnect from badge
+        async function disconnectFromBadge() {
+            if (bleDevice && bleDevice.gatt.connected) {
+                bleDevice.gatt.disconnect();
+            }
+            isConnected = false;
+            updateConnectionUI();
+        }
+
+        // Toggle connection
+        async function toggleConnection() {
+            if (isConnected) {
+                await disconnectFromBadge();
+            } else {
+                await connectToBadge();
+            }
+        }
+
+        // Send a simple command
+        async function sendCommand(command, ...args) {
+            if (!isConnected || !commandCharacteristic) {
+                log('Not connected to badge', 'error');
+                return false;
+            }
+
+            try {
+                const packet = buildCommand(command, ...args);
+                await commandCharacteristic.writeValue(packet);
+                log(`Sent command: ${command}`, 'success');
+                return true;
+            } catch (error) {
+                log(`Failed to send command: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        // Debounce helper
+        function debounce(func, wait) {
+            let timeout;
+            return function(...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(this, args), wait);
+            };
+        }
+
+        // Send brightness to badge (debounced)
+        const sendBrightnessDebounced = debounce(async (value) => {
+            if (isConnected) {
+                await sendCommand('LIGHT', value);
+            }
+        }, 100);
+
+        // Send speed to badge (debounced)
+        const sendSpeedDebounced = debounce(async (value) => {
+            if (isConnected) {
+                await sendCommand('SPEED', value);
+            }
+        }, 100);
+
+        // Update brightness display and send to badge
+        function updateBrightness() {
+            const value = parseInt(document.getElementById('brightnessSlider').value);
+            document.getElementById('brightnessValue').textContent = value;
+            sendBrightnessDebounced(value);
+        }
+
+        // Update speed display and send to badge
+        function updateSpeed() {
+            const value = parseInt(document.getElementById('speedSlider').value);
+            document.getElementById('speedValue').textContent = value;
+            sendSpeedDebounced(value);
+        }
+
+        // Update scroll mode and send to badge
+        async function updateScrollMode() {
+            const value = parseInt(document.getElementById('scrollModeSelect').value);
+            if (isConnected) {
+                await sendCommand('MODE', value);
+            }
+        }
+
+        // Apply current settings to badge
+        async function applySettings() {
+            if (!isConnected) {
+                log('Not connected to badge', 'error');
+                return;
+            }
+
+            const brightness = parseInt(document.getElementById('brightnessSlider').value);
+            const speed = parseInt(document.getElementById('speedSlider').value);
+            const scrollMode = parseInt(document.getElementById('scrollModeSelect').value);
+
+            log('Applying settings...', 'info');
+
+            await sendCommand('LIGHT', brightness);
+            await delay(50);
+            await sendCommand('SPEED', speed);
+            await delay(50);
+            await sendCommand('MODE', scrollMode);
+
+            log('Settings applied', 'success');
+        }
+
+        // Helper delay function
+        function delay(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // Strip variation selectors from a character (U+FE0E, U+FE0F)
+        function stripVariationSelectors(char) {
+            return char.replace(/[\uFE0E\uFE0F]/g, '');
+        }
+
+        // Render text to bytes using the current font
+        function renderTextToBytes(text) {
+            const chars = getGraphemes(text);
+            const bytes = [];
+
+            for (const char of chars) {
+                // Try with variation selectors stripped if not found directly
+                const lookupChar = font[char] ? char : stripVariationSelectors(char);
+                const charData = font[lookupChar] || font[' '] || [0, 0, 0, 0, 0, 0, 0, 0, 0];
+                const width = getCharWidth(charData);
+
+                for (let segment = 0; segment < width; segment++) {
+                    const segmentData = getSegment(charData, segment);
+                    bytes.push(...segmentData);
+                }
+            }
+
+            return new Uint8Array(bytes);
+        }
+
+        // Send text to badge
+        async function sendTextToBadge() {
+            if (!isConnected) {
+                log('Not connected to badge', 'error');
+                return;
+            }
+
+            const text = document.getElementById('previewInput').value;
+            if (!text) {
+                log('No text to send', 'error');
+                return;
+            }
+
+            try {
+                log(`Sending text: "${text}"`, 'info');
+
+                // Render text to bytes
+                const textBytes = renderTextToBytes(text);
+                log(`Text rendered to ${textBytes.length} bytes`, 'info');
+
+                // Send DATS command to start data transfer
+                // Format: DATS[length_high][length_low][0x00][0x00]
+                const lenHigh = (textBytes.length >> 8) & 0xFF;
+                const lenLow = textBytes.length & 0xFF;
+                await sendCommand('DATS', lenHigh, lenLow, 0x00, 0x00);
+                await delay(100);
+
+                // Send data packets
+                const dataPackets = buildDataPackets(textBytes);
+                log(`Sending ${dataPackets.length} data packets...`, 'info');
+
+                for (let i = 0; i < dataPackets.length; i++) {
+                    await imageCharacteristic.writeValue(dataPackets[i]);
+                    await delay(10);
+                }
+
+                // Send DATCP to complete transfer
+                await delay(50);
+                await sendCommand('DATCP');
+                await delay(100);
+
+                // Apply display settings
+                const brightness = parseInt(document.getElementById('brightnessSlider').value);
+                const speed = parseInt(document.getElementById('speedSlider').value);
+                const scrollMode = parseInt(document.getElementById('scrollModeSelect').value);
+
+                await sendCommand('MODE', scrollMode);
+                await delay(50);
+                await sendCommand('LIGHT', brightness);
+                await delay(50);
+                await sendCommand('SPEED', speed);
+
+                log('Text sent successfully!', 'success');
+
+            } catch (error) {
+                log(`Failed to send text: ${error.message}`, 'error');
+            }
+        }
+
+        // Send image to badge
+        async function sendImageToBadge() {
+            if (!isConnected) {
+                log('Not connected to badge', 'error');
+                return;
+            }
+
+            try {
+                log('Sending image...', 'info');
+
+                // Get image bytes from the image editor
+                const imageBytes = new Uint8Array(encodeImageToBytes());
+                log(`Image encoded to ${imageBytes.length} bytes`, 'info');
+
+                // Send DATS command to start data transfer
+                // Format: DATS[length_high][length_low][0x00][0x00]
+                const lenHigh = (imageBytes.length >> 8) & 0xFF;
+                const lenLow = imageBytes.length & 0xFF;
+                await sendCommand('DATS', lenHigh, lenLow, 0x00, 0x00);
+                await delay(100);
+
+                // Send data packets
+                const dataPackets = buildDataPackets(imageBytes);
+                log(`Sending ${dataPackets.length} data packets...`, 'info');
+
+                for (let i = 0; i < dataPackets.length; i++) {
+                    await imageCharacteristic.writeValue(dataPackets[i]);
+                    await delay(10);
+                }
+
+                // Send DATCP to complete transfer
+                await delay(50);
+                await sendCommand('DATCP');
+                await delay(100);
+
+                // Apply display settings
+                const brightness = parseInt(document.getElementById('brightnessSlider').value);
+                const speed = parseInt(document.getElementById('speedSlider').value);
+                const scrollMode = parseInt(document.getElementById('scrollModeSelect').value);
+
+                await sendCommand('MODE', scrollMode);
+                await delay(50);
+                await sendCommand('LIGHT', brightness);
+                await delay(50);
+                await sendCommand('SPEED', speed);
+
+                log('Image sent successfully!', 'success');
+
+            } catch (error) {
+                log(`Failed to send image: ${error.message}`, 'error');
+            }
+        }
+
+        // Check for Web Bluetooth support
+        function checkBluetoothSupport() {
+            if (!navigator.bluetooth) {
+                const panel = document.querySelector('.badge-control-panel');
+                panel.innerHTML = `
+                    <div class="section-title">Badge Connection</div>
+                    <div style="color: #f44336; padding: 10px; background: #2a1a1a; border-radius: 4px;">
+                        Web Bluetooth is not supported in this browser.<br>
+                        Please use Chrome, Edge, or Opera on desktop, or Chrome on Android.
+                    </div>
+                `;
+                return false;
+            }
+            return true;
+        }
 
         // Start
         init();
+
+        // Initialize Bluetooth
+        if (checkBluetoothSupport()) {
+            initAesKey();
+            updateConnectionUI();
+        }
     </script>
 </body>
 </html>

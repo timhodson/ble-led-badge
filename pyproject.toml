@@ -10,9 +10,11 @@ packages = [{include = "badge_controller"}]
 python = "^3.8"
 bleak = "^0.20.2"
 pycryptodome = "^3.19.0"
+python-osc = "^1.8.0"
 
 [tool.poetry.scripts]
 badge-controller = "badge_controller.cli:main"
+badge-osc-server = "osc_server.server:main"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

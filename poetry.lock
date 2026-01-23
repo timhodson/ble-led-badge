@@ -233,7 +233,19 @@ files = [
 [package.dependencies]
 pyobjc-core = ">=9.2"
 
+[[package]]
+name = "python-osc"
+version = "1.8.3"
+description = "Open Sound Control server and client implementations in pure Python"
+optional = false
+python-versions = ">=3.7"
+groups = ["main"]
+files = [
+    {file = "python-osc-1.8.3.tar.gz", hash = "sha256:a5ce1ba56c8d82df51cb3f2946b5dd33a70522791acc4b8564e62d2b20ad9caa"},
+    {file = "python_osc-1.8.3-py3-none-any.whl", hash = "sha256:6fa7e5cf7690057712c26e5f67a747126e6a5f481a40792aad0f25ac3edee815"},
+]
+
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.8"
-content-hash = "7e2eb6c3bfd95314800ddc55ded505b5221d26d8c431efa9e6befc253d5e119f"
+content-hash = "e6d2f265564f799c13035f14b3b5a0dff0a8d8c0b2d573d86cadce64d51f2885"

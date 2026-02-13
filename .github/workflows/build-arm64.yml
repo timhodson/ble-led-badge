@@ -23,7 +23,7 @@ jobs:
           docker run --rm --platform linux/arm64 \
             -v "${{ github.workspace }}:/workspace" \
             -w /workspace \
-            python:3.11-slim-bookworm \
+            python:3.11-slim-bullseye \
             bash -c '
               set -ex
 

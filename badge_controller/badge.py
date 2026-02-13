@@ -26,14 +26,16 @@ class Badge:
             await badge.play_animation(1)
     """
 
-    def __init__(self, address: str):
+    def __init__(self, address: str, timeout: float = 30.0):
         """
         Initialize badge controller.
 
         Args:
             address: BLE MAC address or UUID of the badge
+            timeout: BLE connection timeout in seconds
         """
         self.address = address
+        self.timeout = timeout
         self._client: Optional[BleakClient] = None
         self._notification_callback: Optional[Callable[[bytes], None]] = None
         self._notification_queue: asyncio.Queue[bytes] = asyncio.Queue()
@@ -54,8 +56,8 @@ class Badge:
 
     async def connect(self) -> None:
         """Establish BLE connection to the badge."""
-        self._client = BleakClient(self.address)
-        await self._client.connect()
+        self._client = BleakClient(self.address, timeout=self.timeout)
+        await self._client.connect(timeout=self.timeout)
 
         # Subscribe to notifications
         await self._client.start_notify(

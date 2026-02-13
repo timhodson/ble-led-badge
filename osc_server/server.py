@@ -79,7 +79,8 @@ class BadgeOSCServer:
         listen_host: str = "0.0.0.0",
         listen_port: int = 9000,
         reply_host: str = "127.0.0.1",
-        reply_port: int = 9001
+        reply_port: int = 9001,
+        ble_timeout: float = 30.0,
     ):
         """
         Initialize the OSC server.
@@ -89,11 +90,13 @@ class BadgeOSCServer:
             listen_port: Port to listen on for OSC messages
             reply_host: Host to send reply messages to
             reply_port: Port to send reply messages to
+            ble_timeout: BLE connection timeout in seconds
         """
         self.listen_host = listen_host
         self.listen_port = listen_port
         self.reply_host = reply_host
         self.reply_port = reply_port
+        self.ble_timeout = ble_timeout
 
         self.badge: Optional[Badge] = None
         self.loop: Optional[asyncio.AbstractEventLoop] = None
@@ -148,7 +151,7 @@ class BadgeOSCServer:
         if self.loop:
             future = asyncio.run_coroutine_threadsafe(coro, self.loop)
             try:
-                return future.result(timeout=30)
+                return future.result(timeout=self.ble_timeout + 5)
             except Exception as e:
                 logger.error(f"Async operation failed: {e}")
                 return None
@@ -170,7 +173,7 @@ class BadgeOSCServer:
             if self.badge and self.badge.is_connected:
                 await self.badge.disconnect()
 
-            self.badge = Badge(badge_address)
+            self.badge = Badge(badge_address, timeout=self.ble_timeout)
             await self.badge.connect()
 
             # Set up notification callback
@@ -654,6 +657,8 @@ def install_service(args) -> None:
         exec_parts += ["--reply-host", args.reply_host]
     if args.reply_port != 9001:
         exec_parts += ["--reply-port", str(args.reply_port)]
+    if args.ble_timeout != 30.0:
+        exec_parts += ["--ble-timeout", str(args.ble_timeout)]
     exec_start = " ".join(exec_parts)
 
     # Build the connect command for ExecStartPost if badge address given
@@ -777,6 +782,7 @@ def run_server(args) -> None:
         listen_port=args.port,
         reply_host=args.reply_host,
         reply_port=args.reply_port,
+        ble_timeout=args.ble_timeout,
     )
 
     def signal_handler(sig, frame):
@@ -814,6 +820,10 @@ def main():
         help="Port to send replies to (default: 9001)",
     )
     run_parser.add_argument(
+        "--ble-timeout", "-T", type=float, default=30.0,
+        help="BLE connection timeout in seconds (default: 30)",
+    )
+    run_parser.add_argument(
         "--verbose", "-v", action="store_true",
         help="Enable verbose logging",
     )
@@ -837,6 +847,10 @@ def main():
     install_parser.add_argument(
         "--reply-port", "-R", type=int, default=9001,
         help="Port for the service to send replies to (default: 9001)",
+    )
+    install_parser.add_argument(
+        "--ble-timeout", "-T", type=float, default=30.0,
+        help="BLE connection timeout in seconds (default: 30)",
     )
     install_parser.add_argument(
         "--badge-address", "-b", default=None,

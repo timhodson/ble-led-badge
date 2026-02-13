@@ -11,3 +11,5 @@ venv/
 .env
 .venv/
 .idea/
+build/*
+dist/*

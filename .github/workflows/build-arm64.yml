@@ -1,0 +1,129 @@
+name: Build ARM64 Binaries
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU for ARM64
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Build ARM64 binary in container
+        run: |
+          docker run --rm --platform linux/arm64 \
+            -v "${{ github.workspace }}:/workspace" \
+            -w /workspace \
+            python:3.11-slim-bookworm \
+            bash -c '
+              set -ex
+
+              # Install system dependencies for bleak/dbus + UPX for compression
+              apt-get update && apt-get install -y --no-install-recommends \
+                gcc \
+                libdbus-1-dev \
+                pkg-config \
+                bluetooth \
+                libbluetooth-dev \
+                upx-ucl
+
+              # Install Python dependencies
+              pip install --no-cache-dir \
+                bleak \
+                pycryptodome \
+                python-osc \
+                pyinstaller \
+                dbus-fast
+
+              # Build the binary
+              pyinstaller badge-osc-server.spec
+
+              # Show size
+              ls -lh dist/badge-osc-server
+
+              # Quick smoke test
+              dist/badge-osc-server --help
+            '
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: badge-osc-server-linux-arm64
+          path: dist/badge-osc-server
+
+  build-macos:
+    runs-on: macos-14  # Apple Silicon (M1) runner
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install UPX
+        run: brew install upx
+
+      - name: Install dependencies
+        run: |
+          pip install --no-cache-dir \
+            bleak \
+            pycryptodome \
+            python-osc \
+            pyinstaller
+
+      - name: Build binary
+        run: pyinstaller badge-osc-server.spec
+
+      - name: Show size and smoke test
+        run: |
+          ls -lh dist/badge-osc-server
+          dist/badge-osc-server --help
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: badge-osc-server-macos-arm64
+          path: dist/badge-osc-server
+
+  release:
+    needs: [build-linux, build-macos]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: badge-osc-server-linux-arm64
+          path: linux-arm64
+
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: badge-osc-server-macos-arm64
+          path: macos-arm64
+
+      - name: Rename binaries for release
+        run: |
+          mv linux-arm64/badge-osc-server badge-osc-server-linux-arm64
+          mv macos-arm64/badge-osc-server badge-osc-server-macos-arm64
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            badge-osc-server-linux-arm64
+            badge-osc-server-macos-arm64
+          generate_release_notes: true

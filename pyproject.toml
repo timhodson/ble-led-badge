@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "A Python project for controlling BLE LED badges."
 authors = ["Tim Hodson <tim@timhodson.com>"]
 license = "MIT"
-packages = [{include = "badge_controller"}]
+packages = [{include = "badge_controller"}, {include = "osc_server"}]
 
 [tool.poetry.dependencies]
 python = "^3.8"

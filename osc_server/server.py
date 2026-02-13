@@ -9,18 +9,20 @@ import argparse
 import asyncio
 import json
 import logging
+import os
+import platform
+import shutil
 import signal
+import subprocess
 import sys
+from pathlib import Path
 from typing import Dict, List, Optional
 
 from pythonosc import osc_server
 from pythonosc.dispatcher import Dispatcher
 from pythonosc.udp_client import SimpleUDPClient
 
-# Add parent directory to path for badge_controller import
-sys.path.insert(0, str(__file__).rsplit("/", 2)[0])
-
-from badge_controller import Badge, ScrollMode
+from badge_controller import Badge, ScrollMode, scan_for_badges
 from badge_controller.text_renderer import TextRenderer
 
 # Configure logging
@@ -588,41 +590,185 @@ class BadgeOSCServer:
         logger.info("OSC server stopped")
 
 
-def main():
-    """Main entry point for the OSC server."""
-    parser = argparse.ArgumentParser(
-        description="OSC Server for BLE LED Badge control"
-    )
-    parser.add_argument(
-        "--host", "-H",
-        default="0.0.0.0",
-        help="Host to listen on (default: 0.0.0.0)"
-    )
-    parser.add_argument(
-        "--port", "-p",
-        type=int,
-        default=9000,
-        help="Port to listen on (default: 9000)"
-    )
-    parser.add_argument(
-        "--reply-host", "-r",
-        default="127.0.0.1",
-        help="Host to send replies to (default: 127.0.0.1)"
-    )
-    parser.add_argument(
-        "--reply-port", "-R",
-        type=int,
-        default=9001,
-        help="Port to send replies to (default: 9001)"
-    )
-    parser.add_argument(
-        "--verbose", "-v",
-        action="store_true",
-        help="Enable verbose logging"
+SERVICE_NAME = "badge-osc-server"
+UNIT_FILE_PATH = Path(f"/etc/systemd/system/{SERVICE_NAME}.service")
+INSTALL_BIN_PATH = Path(f"/usr/local/bin/{SERVICE_NAME}")
+
+
+def _get_executable_path() -> Path:
+    """Get the path to the current executable (frozen binary or script)."""
+    if getattr(sys, 'frozen', False):
+        return Path(sys.executable)
+    return Path(__file__).resolve()
+
+
+def _is_linux() -> bool:
+    return platform.system() == "Linux"
+
+
+def _check_systemd() -> bool:
+    """Check if systemd is available on this system."""
+    if not _is_linux():
+        return False
+    return shutil.which("systemctl") is not None
+
+
+def _run_systemctl(*args) -> subprocess.CompletedProcess:
+    """Run a systemctl command and return the result."""
+    return subprocess.run(
+        ["systemctl"] + list(args),
+        capture_output=True,
+        text=True,
     )
 
-    args = parser.parse_args()
 
+def install_service(args) -> None:
+    """Install badge-osc-server as a systemd service."""
+    if not _check_systemd():
+        print("Error: systemd is not available on this system.")
+        print("The install command is only supported on Linux with systemd.")
+        sys.exit(1)
+
+    if os.geteuid() != 0:
+        print("Error: install must be run as root (use sudo).")
+        sys.exit(1)
+
+    exe = _get_executable_path()
+
+    # Copy binary to /usr/local/bin if running from elsewhere
+    if getattr(sys, 'frozen', False) and exe != INSTALL_BIN_PATH:
+        print(f"Copying {exe} -> {INSTALL_BIN_PATH}")
+        shutil.copy2(str(exe), str(INSTALL_BIN_PATH))
+        INSTALL_BIN_PATH.chmod(0o755)
+        exec_path = INSTALL_BIN_PATH
+    elif getattr(sys, 'frozen', False):
+        exec_path = INSTALL_BIN_PATH
+    else:
+        print(f"Warning: Running from source — service will use: {exe}")
+        exec_path = exe
+
+    # Build ExecStart command
+    exec_parts = [str(exec_path), "run"]
+    exec_parts += ["--host", args.host, "--port", str(args.port)]
+    if args.reply_host != "127.0.0.1":
+        exec_parts += ["--reply-host", args.reply_host]
+    if args.reply_port != 9001:
+        exec_parts += ["--reply-port", str(args.reply_port)]
+    exec_start = " ".join(exec_parts)
+
+    # Build the connect command for ExecStartPost if badge address given
+    connect_env = ""
+    exec_start_post = ""
+    if args.badge_address:
+        connect_env = f"Environment=BADGE_ADDRESS={args.badge_address}\n"
+
+    unit_content = f"""\
+[Unit]
+Description=BLE LED Badge OSC Server
+After=bluetooth.target network.target
+Wants=bluetooth.target
+
+[Service]
+Type=simple
+ExecStart={exec_start}
+{connect_env}Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+"""
+
+    print(f"Writing unit file to {UNIT_FILE_PATH}")
+    UNIT_FILE_PATH.write_text(unit_content)
+
+    print("Reloading systemd daemon...")
+    _run_systemctl("daemon-reload")
+
+    print(f"Enabling and starting {SERVICE_NAME}...")
+    result = _run_systemctl("enable", "--now", SERVICE_NAME)
+    if result.returncode != 0:
+        print(f"Error: {result.stderr.strip()}")
+        sys.exit(1)
+
+    print(f"Service {SERVICE_NAME} installed and started successfully.")
+    print(f"  Check status: sudo badge-osc-server status")
+    print(f"  View logs:    journalctl -u {SERVICE_NAME} -f")
+
+
+def uninstall_service(args) -> None:
+    """Uninstall the badge-osc-server systemd service."""
+    if not _check_systemd():
+        print("Error: systemd is not available on this system.")
+        sys.exit(1)
+
+    if os.geteuid() != 0:
+        print("Error: uninstall must be run as root (use sudo).")
+        sys.exit(1)
+
+    print(f"Stopping {SERVICE_NAME}...")
+    _run_systemctl("stop", SERVICE_NAME)
+
+    print(f"Disabling {SERVICE_NAME}...")
+    _run_systemctl("disable", SERVICE_NAME)
+
+    if UNIT_FILE_PATH.exists():
+        print(f"Removing {UNIT_FILE_PATH}")
+        UNIT_FILE_PATH.unlink()
+
+    print("Reloading systemd daemon...")
+    _run_systemctl("daemon-reload")
+
+    print(f"Service {SERVICE_NAME} uninstalled successfully.")
+
+
+def service_status(args) -> None:
+    """Show the status of the badge-osc-server systemd service."""
+    if not _check_systemd():
+        print("Error: systemd is not available on this system.")
+        sys.exit(1)
+
+    if not UNIT_FILE_PATH.exists():
+        print(f"Service {SERVICE_NAME} is not installed.")
+        print(f"  Install with: sudo badge-osc-server install")
+        return
+
+    result = _run_systemctl("status", SERVICE_NAME)
+    print(result.stdout)
+    if result.stderr:
+        print(result.stderr)
+
+
+def scan_badges(args) -> None:
+    """Scan for nearby BLE LED badges."""
+    async def do_scan():
+        filter_badges = not args.all
+        scan_type = "all BLE devices" if args.all else "LED badges"
+        print(f"Scanning for {scan_type} ({args.timeout}s)...")
+
+        devices = await scan_for_badges(
+            timeout=args.timeout, filter_badges=filter_badges,
+        )
+
+        if not devices:
+            if filter_badges:
+                print("No badges found. Try --all to see all BLE devices.")
+            else:
+                print("No devices found.")
+            return
+
+        label = "device" if args.all else "badge"
+        print(f"\nFound {len(devices)} {label}(s):\n")
+        for i, device in enumerate(devices, 1):
+            name = device.name or "(unnamed)"
+            print(f"  {i}. {name}")
+            print(f"     Address: {device.address}")
+            print()
+
+    asyncio.run(do_scan())
+
+
+def run_server(args) -> None:
+    """Start the OSC server (run subcommand)."""
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
 
@@ -630,10 +776,9 @@ def main():
         listen_host=args.host,
         listen_port=args.port,
         reply_host=args.reply_host,
-        reply_port=args.reply_port
+        reply_port=args.reply_port,
     )
 
-    # SIGTERM handler (SIGINT/Ctrl+C is handled by KeyboardInterrupt in start())
     def signal_handler(sig, frame):
         logger.info("Received SIGTERM")
         server.stop()
@@ -641,6 +786,100 @@ def main():
     signal.signal(signal.SIGTERM, signal_handler)
 
     server.start()
+
+
+def main():
+    """Main entry point for the OSC server."""
+    parser = argparse.ArgumentParser(
+        description="OSC Server for BLE LED Badge control"
+    )
+    subparsers = parser.add_subparsers(dest="command")
+
+    # --- run subcommand (also the default) ---
+    run_parser = subparsers.add_parser("run", help="Start the OSC server")
+    run_parser.add_argument(
+        "--host", "-H", default="0.0.0.0",
+        help="Host to listen on (default: 0.0.0.0)",
+    )
+    run_parser.add_argument(
+        "--port", "-p", type=int, default=9000,
+        help="Port to listen on (default: 9000)",
+    )
+    run_parser.add_argument(
+        "--reply-host", "-r", default="127.0.0.1",
+        help="Host to send replies to (default: 127.0.0.1)",
+    )
+    run_parser.add_argument(
+        "--reply-port", "-R", type=int, default=9001,
+        help="Port to send replies to (default: 9001)",
+    )
+    run_parser.add_argument(
+        "--verbose", "-v", action="store_true",
+        help="Enable verbose logging",
+    )
+
+    # --- install subcommand ---
+    install_parser = subparsers.add_parser(
+        "install", help="Install as a systemd service",
+    )
+    install_parser.add_argument(
+        "--host", "-H", default="0.0.0.0",
+        help="Host the service should listen on (default: 0.0.0.0)",
+    )
+    install_parser.add_argument(
+        "--port", "-p", type=int, default=9000,
+        help="Port the service should listen on (default: 9000)",
+    )
+    install_parser.add_argument(
+        "--reply-host", "-r", default="127.0.0.1",
+        help="Host for the service to send replies to (default: 127.0.0.1)",
+    )
+    install_parser.add_argument(
+        "--reply-port", "-R", type=int, default=9001,
+        help="Port for the service to send replies to (default: 9001)",
+    )
+    install_parser.add_argument(
+        "--badge-address", "-b", default=None,
+        help="BLE address of badge to set as BADGE_ADDRESS env var",
+    )
+
+    # --- scan subcommand ---
+    scan_parser = subparsers.add_parser(
+        "scan", help="Scan for nearby BLE LED badges",
+    )
+    scan_parser.add_argument(
+        "--timeout", "-t", type=float, default=10.0,
+        help="Scan timeout in seconds (default: 10)",
+    )
+    scan_parser.add_argument(
+        "--all", "-a", action="store_true",
+        help="Show all BLE devices, not just badges",
+    )
+
+    # --- uninstall subcommand ---
+    subparsers.add_parser("uninstall", help="Remove the systemd service")
+
+    # --- status subcommand ---
+    subparsers.add_parser("status", help="Show systemd service status")
+
+    args = parser.parse_args()
+
+    # Default to 'run' if no subcommand given
+    if args.command is None:
+        # Re-parse with 'run' prepended so flags like --port work
+        args = run_parser.parse_args(sys.argv[1:])
+        args.command = "run"
+
+    if args.command == "run":
+        run_server(args)
+    elif args.command == "scan":
+        scan_badges(args)
+    elif args.command == "install":
+        install_service(args)
+    elif args.command == "uninstall":
+        uninstall_service(args)
+    elif args.command == "status":
+        service_status(args)
 
 
 if __name__ == "__main__":

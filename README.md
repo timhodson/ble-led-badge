@@ -275,9 +275,15 @@ ble-led-badge/
 │   ├── encryption.py       # AES-ECB encryption
 │   ├── protocol.py         # BLE UUIDs and constants
 │   └── text_renderer.py    # Text-to-bitmap conversion
+├── osc_server/             # OSC server for creative tools
+│   ├── server.py           # OSC server with scan/install/run
+│   └── README.md           # OSC server documentation
 ├── font-editor/            # Web-based font editor
 │   ├── index.html          # Font editor application
 │   └── font.json           # Font data file
+├── .github/workflows/      # CI/CD
+│   └── build-arm64.yml     # Build ARM64 binaries (Linux + macOS)
+├── badge-osc-server.spec   # PyInstaller spec for building binaries
 ├── examples/               # Example scripts
 ├── experiments/            # Experimental code
 ├── initial_analysis/       # Reverse engineering notes

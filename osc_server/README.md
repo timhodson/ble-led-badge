@@ -4,6 +4,8 @@ An OSC (Open Sound Control) server that provides a network interface for control
 
 ## Installation
 
+### From source (development)
+
 The OSC server is part of the main project. Install dependencies using Poetry:
 
 ```bash
@@ -11,22 +13,79 @@ cd /path/to/ble-led-badge
 poetry install
 ```
 
-## Usage
+### Pre-built binary (Raspberry Pi / macOS)
 
-### Starting the Server
+Download the latest binary for your platform from the [GitHub Releases](../../releases) page:
+
+- `badge-osc-server-linux-arm64` — Raspberry Pi / Linux ARM64
+- `badge-osc-server-macos-arm64` — macOS Apple Silicon
 
 ```bash
-# Using poetry run
-poetry run badge-osc-server
-
-# Or with custom ports
-poetry run badge-osc-server --port 9000 --reply-port 9001
-
-# All options
-poetry run badge-osc-server --host 0.0.0.0 --port 9000 --reply-host 127.0.0.1 --reply-port 9001 --verbose
+chmod +x badge-osc-server-linux-arm64
+./badge-osc-server-linux-arm64 --help
 ```
 
-### Command Line Options
+No Python, pip, or Poetry required when using the pre-built binary.
+
+## CLI Commands
+
+The tool uses subcommands. Running without a subcommand defaults to `run`.
+
+```bash
+badge-osc-server <command> [options]
+```
+
+| Command | Description |
+|---------|-------------|
+| `run` | Start the OSC server (default) |
+| `scan` | Scan for nearby BLE LED badges |
+| `install` | Install as a systemd service (Linux, requires root) |
+| `uninstall` | Remove the systemd service (Linux, requires root) |
+| `status` | Show systemd service status (Linux) |
+
+### Scanning for badges
+
+Find the BLE address of nearby badges before connecting:
+
+```bash
+# Scan for LED badges (filtered by service UUID and name patterns)
+badge-osc-server scan
+
+# Scan for all BLE devices
+badge-osc-server scan --all
+
+# Custom timeout (default 10 seconds)
+badge-osc-server scan --timeout 20
+```
+
+Example output:
+
+```
+Scanning for LED badges (10.0s)...
+
+Found 1 badge(s):
+
+  1. LSLED
+     Address: AA:BB:CC:DD:EE:FF
+```
+
+### Starting the server
+
+```bash
+# Start with defaults
+badge-osc-server run
+
+# Or simply (run is the default subcommand)
+badge-osc-server
+
+# With custom ports
+badge-osc-server run --port 9000 --reply-port 9001
+
+# All options
+badge-osc-server run --host 0.0.0.0 --port 9000 --reply-host 127.0.0.1 --reply-port 9001 --verbose
+```
+
+**`run` options:**
 
 | Option | Default | Description |
 |--------|---------|-------------|
@@ -35,6 +94,39 @@ poetry run badge-osc-server --host 0.0.0.0 --port 9000 --reply-host 127.0.0.1 --
 | `--reply-host`, `-r` | `127.0.0.1` | Host to send reply messages to |
 | `--reply-port`, `-R` | `9001` | Port to send reply messages to |
 | `--verbose`, `-v` | - | Enable verbose logging |
+
+### Installing as a systemd service (Raspberry Pi)
+
+Run the pre-built binary on a Pi to install it as a service that starts on boot:
+
+```bash
+# Install and start the service
+sudo ./badge-osc-server install
+
+# With custom options
+sudo ./badge-osc-server install --port 8000 --badge-address AA:BB:CC:DD:EE:FF
+
+# Check service status
+sudo badge-osc-server status
+
+# View logs
+journalctl -u badge-osc-server -f
+
+# Remove the service
+sudo badge-osc-server uninstall
+```
+
+**`install` options:**
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--host`, `-H` | `0.0.0.0` | Host the service listens on |
+| `--port`, `-p` | `9000` | Port the service listens on |
+| `--reply-host`, `-r` | `127.0.0.1` | Host for reply messages |
+| `--reply-port`, `-R` | `9001` | Port for reply messages |
+| `--badge-address`, `-b` | - | Badge BLE address (set as `BADGE_ADDRESS` env var in service) |
+
+The installer copies the binary to `/usr/local/bin/badge-osc-server` and creates a systemd unit at `/etc/systemd/system/badge-osc-server.service`.
 
 ## OSC Commands
 

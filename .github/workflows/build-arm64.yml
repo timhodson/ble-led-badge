@@ -27,14 +27,23 @@ jobs:
             bash -c '
               set -ex
 
-              # Install system dependencies for bleak/dbus + UPX for compression
+              # Install system dependencies for bleak/dbus
               apt-get update && apt-get install -y --no-install-recommends \
                 gcc \
                 libdbus-1-dev \
                 pkg-config \
                 bluetooth \
                 libbluetooth-dev \
-                upx-ucl
+                wget \
+                xz-utils
+
+              # Install UPX from GitHub releases (not packaged for arm64 bookworm)
+              UPX_VERSION=4.2.4
+              wget -q "https://github.com/upx/upx/releases/download/v${UPX_VERSION}/upx-${UPX_VERSION}-arm64_linux.tar.xz"
+              tar -xJf "upx-${UPX_VERSION}-arm64_linux.tar.xz"
+              cp "upx-${UPX_VERSION}-arm64_linux/upx" /usr/local/bin/
+              rm -rf "upx-${UPX_VERSION}-arm64_linux" "upx-${UPX_VERSION}-arm64_linux.tar.xz"
+              upx --version
 
               # Install Python dependencies
               pip install --no-cache-dir \

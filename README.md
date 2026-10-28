@@ -27,7 +27,7 @@ pip install -e /path/to/ble-led-badge
 
 ## Dependencies
 
-- **Python 3.8+**
+- **Python 3.10+**
 - **Bleak** - Cross-platform BLE library
 - **pycryptodome** - AES encryption for badge protocol
 

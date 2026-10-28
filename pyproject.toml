@@ -7,10 +7,10 @@ license = "MIT"
 packages = [{include = "badge_controller"}, {include = "osc_server"}]
 
 [tool.poetry.dependencies]
-python = "^3.8"
-bleak = "^0.20.2"
-pycryptodome = "^3.19.0"
-python-osc = "^1.8.0"
+python = "^3.10"
+bleak = "^3.0.2"
+pycryptodome = ">=3.19.0,<5"
+python-osc = "^1.10.2"
 
 [tool.poetry.scripts]
 badge-controller = "badge_controller.cli:main"
